@@ -1,6 +1,8 @@
 # Minecraft Whitelist API - Java Edition
 
-Production-ready Java Spring Boot API server for managing Minecraft server whitelist, ops, and banned players.
+Production-ready Java Spring Boot API server for managing Minecraft server whitelist via RCON.
+
+**Note:** This API is designed for remote Minecraft servers. It uses RCON (Remote Console) to manage the whitelist, so you don't need direct file system access to the server.
 
 ---
 
@@ -8,32 +10,12 @@ Production-ready Java Spring Boot API server for managing Minecraft server white
 
 - ✅ **Spring Boot 3.2** - Modern, production-ready framework
 - ✅ **RESTful API** - Clean, standardized endpoints
-- ✅ **File Locking** - Thread-safe file operations
+- ✅ **RCON Integration** - Direct server command execution (required)
 - ✅ **Rate Limiting** - Prevents abuse (10 requests/minute)
 - ✅ **API Key Authentication** - Secure access control
-- ✅ **RCON Integration** - Direct server command execution
-- ✅ **UUID Generation** - Online and offline mode support
 - ✅ **Input Validation** - Comprehensive validation
 - ✅ **Audit Logging** - Complete action history
-- ✅ **Organized Structure** - Config folder for settings, root for data files
-
----
-
-## 📁 File Structure
-
-```
-minecraft-server/
-├── config/                          ← Configuration files go here
-│   ├── server.properties
-│   ├── eula.txt
-│   └── (other config files)
-├── whitelist.json                   ← Data files in root
-├── ops.json                         ← Data files in root
-├── banned-players.json              ← Data files in root
-├── logs/
-│   └── latest.log
-└── (other server files)
-```
+- ✅ **Remote Server Support** - Works with hosted Minecraft servers
 
 ---
 
@@ -43,7 +25,8 @@ minecraft-server/
 
 - Java 17 or higher
 - Maven 3.6+
-- Minecraft server with existing whitelist.json
+- Minecraft server with RCON enabled
+- Network access to the Minecraft server's RCON port
 
 ### Installation
 
@@ -61,8 +44,9 @@ minecraft-server/
    Copy `src/main/resources/application.properties.example` to `src/main/resources/application.properties` and update:
    ```properties
    minecraft.server.api-key=your-secure-api-key-here
-   minecraft.server.server-root=/path/to/minecraft/server
-   minecraft.server.whitelist-file=whitelist.json
+   minecraft.server.rcon.host=your-minecraft-server-ip
+   minecraft.server.rcon.port=25575
+   minecraft.server.rcon.password=your-rcon-password
    ```
 
 4. **Run:**
@@ -81,17 +65,14 @@ Set these in your environment or `.env` file:
 ```bash
 # Required
 MINECRAFT_API_KEY=your-secure-api-key-here
-MINECRAFT_SERVER_ROOT=/path/to/minecraft/server
+RCON_HOST=your-minecraft-server-ip
+RCON_PORT=25575
+RCON_PASSWORD=your-rcon-password
 
 # Optional
 MINECRAFT_API_PORT=3003
-CONFIG_FOLDER=/path/to/minecraft/server/config
-WHITELIST_FILE=whitelist.json
 SERVER_MODE=ONLINE
-RCON_ENABLED=false
-RCON_HOST=localhost
-RCON_PORT=25575
-RCON_PASSWORD=your-rcon-password
+RCON_ENABLED=true
 ```
 
 ### Application Properties
@@ -100,15 +81,25 @@ Create `src/main/resources/application.properties`:
 
 ```properties
 minecraft.server.api-key=${MINECRAFT_API_KEY}
-minecraft.server.server-root=${MINECRAFT_SERVER_ROOT:./}
-minecraft.server.config-folder=${CONFIG_FOLDER:}
-minecraft.server.whitelist-file=${WHITELIST_FILE:whitelist.json}
 minecraft.server.mode=${SERVER_MODE:ONLINE}
-minecraft.server.rcon.enabled=${RCON_ENABLED:false}
-minecraft.server.rcon.host=${RCON_HOST:localhost}
+minecraft.server.rcon.enabled=${RCON_ENABLED:true}
+minecraft.server.rcon.host=${RCON_HOST}
 minecraft.server.rcon.port=${RCON_PORT:25575}
-minecraft.server.rcon.password=${RCON_PASSWORD:}
+minecraft.server.rcon.password=${RCON_PASSWORD}
 ```
+
+### Enable RCON on Your Minecraft Server
+
+1. Edit `server.properties`:
+   ```properties
+   enable-rcon=true
+   rcon.port=25575
+   rcon.password=your-secure-password
+   ```
+
+2. Restart your Minecraft server
+
+3. Ensure the RCON port (default: 25575) is accessible from where you're running this API
 
 ---
 
@@ -132,7 +123,6 @@ Content-Type: application/json
   "success": true,
   "message": "PlayerName added to whitelist",
   "username": "PlayerName",
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
   "mode": "online"
 }
 ```
@@ -146,6 +136,14 @@ Content-Type: application/json
 
 {
   "username": "PlayerName"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "PlayerName removed from whitelist"
 }
 ```
 
@@ -179,10 +177,9 @@ GET /api/health
   "timestamp": "2024-01-01T12:00:00",
   "service": "minecraft-whitelist-api",
   "mode": "online",
-  "rcon_enabled": false,
-  "server_root": "/path/to/server",
-  "config_folder": "/path/to/server/config",
-  "whitelist_file": "whitelist.json"
+  "rcon_enabled": true,
+  "rcon_host": "192.168.1.100",
+  "rcon_port": 25575
 }
 ```
 
@@ -216,9 +213,14 @@ java -jar target/minecraft-whitelist-api-1.0.0.jar
 
 - **API Key Authentication** - All endpoints require valid API key
 - **Rate Limiting** - 10 requests per minute per IP
-- **Path Validation** - Prevents directory traversal attacks
-- **File Locking** - Thread-safe file operations
 - **Input Validation** - All inputs validated and sanitized
+- **RCON Security** - Use strong RCON passwords and restrict network access
+
+**Security Recommendations:**
+- Use strong, unique API keys
+- Use strong RCON passwords
+- Restrict RCON port access via firewall
+- Use HTTPS in production (via reverse proxy)
 
 ---
 
@@ -236,11 +238,35 @@ curl -X POST http://localhost:3003/api/whitelist/add \
 # Get status
 curl -X GET http://localhost:3003/api/whitelist/status \
   -H "X-API-Key: your-api-key"
+
+# Remove from whitelist
+curl -X DELETE http://localhost:3003/api/whitelist/remove \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"TestPlayer"}'
 ```
 
 ---
 
 ## 🐛 Troubleshooting
+
+### RCON Connection Failed
+
+1. **Verify RCON is enabled** on your Minecraft server:
+   ```properties
+   enable-rcon=true
+   rcon.port=25575
+   rcon.password=your-password
+   ```
+
+2. **Check network connectivity:**
+   ```bash
+   telnet your-minecraft-server-ip 25575
+   ```
+
+3. **Verify firewall rules** allow connections to RCON port
+
+4. **Check RCON password** matches in both `server.properties` and application config
 
 ### Port Already in Use
 
@@ -249,19 +275,23 @@ Change port in `application.properties`:
 server.port=3004
 ```
 
-### File Not Found
+### Authentication Errors
 
-Verify `MINECRAFT_SERVER_ROOT` points to correct directory:
-```bash
-# Check if whitelist.json exists
-ls $MINECRAFT_SERVER_ROOT/whitelist.json
-```
+- Verify `X-API-Key` header is included in requests
+- Check API key matches configuration
+- Ensure API key is properly set in environment or properties file
 
-### RCON Connection Failed
+---
 
-1. Verify RCON is enabled in `server.properties`
-2. Check RCON password matches
-3. Ensure firewall allows RCON port (default: 25575)
+## 🔌 How It Works
+
+This API uses **RCON (Remote Console)** to communicate with your Minecraft server:
+
+1. **Add to Whitelist**: Executes `whitelist add <username>` via RCON
+2. **Remove from Whitelist**: Executes `whitelist remove <username>` via RCON
+3. **Get Status**: Executes `whitelist list` via RCON and parses the response
+
+Since the server is hosted remotely, we don't have direct file system access. All operations are performed through RCON commands that the Minecraft server executes.
 
 ---
 
@@ -275,6 +305,27 @@ ls $MINECRAFT_SERVER_ROOT/whitelist.json
 
 ---
 
+## 📖 Architecture
+
+```
+┌─────────────────┐         RCON          ┌──────────────────┐
+│   Java API      │◄─────────────────────►│  Minecraft       │
+│   (Port 3003)   │   (Port 25575)        │  Server          │
+└─────────────────┘                        └──────────────────┘
+         ▲
+         │ HTTP/REST
+         │
+┌────────┴────────┐
+│   Dashboard     │
+│   Bot, etc.     │
+└─────────────────┘
+```
+
+The Java API acts as a proxy, translating REST API calls into RCON commands sent to the remote Minecraft server.
+
+---
+
 **Version:** 1.0.0  
 **Java:** 17+  
-**Framework:** Spring Boot 3.2
+**Framework:** Spring Boot 3.2  
+**Protocol:** RCON (required)

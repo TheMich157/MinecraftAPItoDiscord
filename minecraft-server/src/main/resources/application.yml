@@ -5,14 +5,9 @@ minecraft:
   server:
     api-key: ${MINECRAFT_API_KEY:your-api-key-here}
     port: ${MINECRAFT_API_PORT:3003}
-    server-root: ${MINECRAFT_SERVER_ROOT:./}
-    config-folder: ${CONFIG_FOLDER:}
-    whitelist-file: ${WHITELIST_FILE:whitelist.json}
-    ops-file: ${OPS_FILE:ops.json}
-    banned-players-file: ${BANNED_PLAYERS_FILE:banned-players.json}
     mode: ${SERVER_MODE:ONLINE}
     rcon:
-      enabled: ${RCON_ENABLED:false}
+      enabled: ${RCON_ENABLED:true}
       host: ${RCON_HOST:localhost}
       port: ${RCON_PORT:25575}
       password: ${RCON_PASSWORD:}

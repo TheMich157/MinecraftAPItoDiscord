@@ -1,10 +1,8 @@
 package com.whitelisthub.api.controller;
 
 import com.whitelisthub.api.config.ServerConfig;
-import com.whitelisthub.api.model.WhitelistEntry;
 import com.whitelisthub.api.service.RconService;
 import com.whitelisthub.api.service.WhitelistService;
-import com.whitelisthub.api.util.UsernameValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -38,25 +36,14 @@ public class WhitelistController {
         String ip = getClientIp(httpRequest);
         
         try {
-            WhitelistEntry entry = whitelistService.addToWhitelist(request.getUsername());
-            
-            if (rconService.isEnabled()) {
-                try {
-                    String command = "whitelist add " + rconService.escapeCommand(request.getUsername());
-                    rconService.executeCommand(command);
-                    log.info("[RCON] Added {} to whitelist", request.getUsername());
-                } catch (Exception e) {
-                    log.warn("[RCON] Command failed: {}", e.getMessage());
-                }
-            }
+            whitelistService.addToWhitelist(request.getUsername());
             
             logAudit("ADD_WHITELIST", request.getUsername(), ip, true, null);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", request.getUsername() + " added to whitelist");
-            response.put("username", entry.getName());
-            response.put("uuid", entry.getUuid());
+            response.put("username", request.getUsername());
             response.put("mode", serverConfig.getMode().name().toLowerCase());
             
             return ResponseEntity.ok(response);
@@ -68,8 +55,8 @@ public class WhitelistController {
                 
         } catch (IllegalStateException e) {
             logAudit("ADD_WHITELIST", request.getUsername(), ip, false, e);
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", e.getMessage(), "username", request.getUsername()));
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", e.getMessage()));
                 
         } catch (IOException e) {
             log.error("Error adding to whitelist: {}", e.getMessage());
@@ -89,16 +76,6 @@ public class WhitelistController {
         try {
             whitelistService.removeFromWhitelist(request.getUsername());
             
-            if (rconService.isEnabled()) {
-                try {
-                    String command = "whitelist remove " + rconService.escapeCommand(request.getUsername());
-                    rconService.executeCommand(command);
-                    log.info("[RCON] Removed {} from whitelist", request.getUsername());
-                } catch (Exception e) {
-                    log.warn("[RCON] Command failed: {}", e.getMessage());
-                }
-            }
-            
             logAudit("REMOVE_WHITELIST", request.getUsername(), ip, true, null);
             
             Map<String, Object> response = new HashMap<>();
@@ -114,7 +91,7 @@ public class WhitelistController {
                 
         } catch (IllegalStateException e) {
             logAudit("REMOVE_WHITELIST", request.getUsername(), ip, false, e);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(Map.of("error", e.getMessage()));
                 
         } catch (IOException e) {
@@ -142,6 +119,11 @@ public class WhitelistController {
             
             return ResponseEntity.ok(response);
             
+        } catch (IllegalStateException e) {
+            logAudit("STATUS_CHECK", null, ip, false, e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", e.getMessage()));
+                
         } catch (IOException e) {
             log.error("Error reading whitelist status: {}", e.getMessage());
             logAudit("STATUS_CHECK", null, ip, false, e);
@@ -158,9 +140,8 @@ public class WhitelistController {
         response.put("service", "minecraft-whitelist-api");
         response.put("mode", serverConfig.getMode().name().toLowerCase());
         response.put("rcon_enabled", rconService.isEnabled());
-        response.put("server_root", serverConfig.getServerRoot());
-        response.put("config_folder", serverConfig.getConfigFolder());
-        response.put("whitelist_file", serverConfig.getWhitelistFile());
+        response.put("rcon_host", serverConfig.getRcon().getHost());
+        response.put("rcon_port", serverConfig.getRcon().getPort());
         
         return ResponseEntity.ok(response);
     }

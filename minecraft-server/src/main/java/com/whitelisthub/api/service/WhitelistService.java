@@ -1,159 +1,93 @@
 package com.whitelisthub.api.service;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import com.whitelisthub.api.config.ServerConfig;
-import com.whitelisthub.api.model.WhitelistEntry;
-import com.whitelisthub.api.util.UuidGenerator;
 import com.whitelisthub.api.util.UsernameValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class WhitelistService {
     
+    private final RconService rconService;
     private final ServerConfig serverConfig;
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    private final ReentrantLock fileLock = new ReentrantLock();
     
-    private Path getWhitelistPath() {
-        Path serverRoot = Paths.get(serverConfig.getServerRoot());
-        Path whitelistFile = Paths.get(serverConfig.getWhitelistFile());
-        
-        if (whitelistFile.isAbsolute()) {
-            return whitelistFile;
-        }
-        return serverRoot.resolve(whitelistFile).normalize();
-    }
-    
-    private void validatePath(Path filePath) {
-        Path serverRoot = Paths.get(serverConfig.getServerRoot()).normalize();
-        Path normalized = filePath.normalize();
-        
-        if (!normalized.startsWith(serverRoot)) {
-            throw new SecurityException("File path must be within server root directory");
-        }
-    }
-    
-    public List<WhitelistEntry> readWhitelist() throws IOException {
-        Path whitelistPath = getWhitelistPath();
-        validatePath(whitelistPath);
-        
-        if (!Files.exists(whitelistPath)) {
-            log.warn("Whitelist file not found at: {}", whitelistPath);
-            throw new IOException("Whitelist file not found: " + whitelistPath);
+    public void addToWhitelist(String username) throws IOException {
+        if (!rconService.isEnabled()) {
+            throw new IllegalStateException("RCON is required for remote server management");
         }
         
-        String content = Files.readString(whitelistPath);
-        List<WhitelistEntry> entries = gson.fromJson(content, 
-            new TypeToken<List<WhitelistEntry>>(){}.getType());
-        
-        if (entries == null) {
-            return new ArrayList<>();
-        }
-        
-        return entries;
-    }
-    
-    public void writeWhitelist(List<WhitelistEntry> entries) throws IOException {
-        Path whitelistPath = getWhitelistPath();
-        validatePath(whitelistPath);
-        
-        Path parentDir = whitelistPath.getParent();
-        if (parentDir != null && !Files.exists(parentDir)) {
-            Files.createDirectories(parentDir);
-        }
-        
-        String json = gson.toJson(entries);
-        Files.writeString(whitelistPath, json);
-    }
-    
-    public WhitelistEntry addToWhitelist(String username) throws IOException {
         if (!UsernameValidator.isValid(username)) {
             throw new IllegalArgumentException("Invalid username format. Must be 3-16 alphanumeric characters and underscores.");
         }
         
-        fileLock.lock();
-        try {
-            List<WhitelistEntry> entries = readWhitelist();
-            
-            String sanitized = UsernameValidator.sanitize(username);
-            boolean exists = entries.stream()
-                .anyMatch(entry -> entry.getName() != null && 
-                    entry.getName().equalsIgnoreCase(sanitized));
-            
-            if (exists) {
-                throw new IllegalStateException("User already whitelisted: " + sanitized);
-            }
-            
-            UUID uuid;
-            if (serverConfig.getMode() == ServerConfig.ServerMode.OFFLINE) {
-                uuid = UuidGenerator.generateOfflineUUID(sanitized);
-            } else {
-                uuid = UuidGenerator.generateOfflineUUID(sanitized);
-            }
-            
-            WhitelistEntry newEntry = new WhitelistEntry(
-                UuidGenerator.uuidToString(uuid),
-                sanitized
-            );
-            
-            entries.add(newEntry);
-            writeWhitelist(entries);
-            
-            log.info("Added {} to whitelist (UUID: {})", sanitized, uuid);
-            return newEntry;
-        } finally {
-            fileLock.unlock();
-        }
+        String sanitized = UsernameValidator.sanitize(username);
+        String command = "whitelist add " + rconService.escapeCommand(sanitized);
+        
+        String response = rconService.executeCommand(command);
+        log.info("Added {} to whitelist via RCON: {}", sanitized, response);
     }
     
     public void removeFromWhitelist(String username) throws IOException {
+        if (!rconService.isEnabled()) {
+            throw new IllegalStateException("RCON is required for remote server management");
+        }
+        
         if (!UsernameValidator.isValid(username)) {
             throw new IllegalArgumentException("Invalid username format");
         }
         
-        fileLock.lock();
-        try {
-            List<WhitelistEntry> entries = readWhitelist();
-            String sanitized = UsernameValidator.sanitize(username);
-            
-            int initialSize = entries.size();
-            entries.removeIf(entry -> 
-                entry.getName() != null && entry.getName().equalsIgnoreCase(sanitized));
-            
-            if (entries.size() == initialSize) {
-                throw new IllegalStateException("User not found in whitelist: " + sanitized);
-            }
-            
-            writeWhitelist(entries);
-            log.info("Removed {} from whitelist", sanitized);
-        } finally {
-            fileLock.unlock();
-        }
+        String sanitized = UsernameValidator.sanitize(username);
+        String command = "whitelist remove " + rconService.escapeCommand(sanitized);
+        
+        String response = rconService.executeCommand(command);
+        log.info("Removed {} from whitelist via RCON: {}", sanitized, response);
     }
     
     public WhitelistStatus getStatus() throws IOException {
-        List<WhitelistEntry> entries = readWhitelist();
-        List<String> usernames = entries.stream()
-            .map(WhitelistEntry::getName)
-            .filter(name -> name != null && !name.isEmpty())
-            .toList();
+        if (!rconService.isEnabled()) {
+            throw new IllegalStateException("RCON is required for remote server management");
+        }
         
-        return new WhitelistStatus(entries.size(), usernames, serverConfig.getMode().name().toLowerCase());
+        String command = "whitelist list";
+        String response = rconService.executeCommand(command);
+        
+        List<String> users = parseWhitelistList(response);
+        
+        return new WhitelistStatus(users.size(), users, serverConfig.getMode().name().toLowerCase());
+    }
+    
+    private List<String> parseWhitelistList(String response) {
+        if (response == null || response.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            if (response.contains(":")) {
+                String[] parts = response.split(":", 2);
+                if (parts.length == 2) {
+                    String userList = parts[1].trim();
+                    if (!userList.isEmpty() && !userList.equals("There are no whitelisted players")) {
+                        String[] userArray = userList.split(",\\s*");
+                        return Arrays.stream(userArray)
+                            .map(String::trim)
+                            .filter(u -> !u.isEmpty())
+                            .toList();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error parsing whitelist response: {}", response, e);
+        }
+        
+        return new ArrayList<>();
     }
     
     public record WhitelistStatus(int count, List<String> users, String mode) {}
