@@ -1,0 +1,238 @@
+# Environment Variables Reference
+
+Complete list of all environment variables used across all services.
+
+## API Server (`api/.env`)
+
+### Required
+- **`ENCRYPTION_KEY`** - Encryption key for bot token (minimum 32 characters)
+  - Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+  - Example: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6`
+
+### Optional
+- **`PORT`** - API server port (default: `3001`)
+- **`NODE_ENV`** - Environment mode: `development` or `production` (default: `development`)
+- **`DISCORD_CLIENT_ID`** - Discord OAuth application client ID
+- **`DISCORD_CLIENT_SECRET`** - Discord OAuth application client secret
+- **`DISCORD_REDIRECT_URI`** - OAuth redirect URI (default: `http://localhost:3000/auth/discord/callback`)
+- **`DASHBOARD_URL`** - Dashboard URL (default: `http://localhost:3000`)
+- **`BOT_URL`** - Bot notification server URL (default: `http://localhost:3002`)
+- **`CORS_ORIGIN`** - Allowed CORS origin (default: `*` - allows all)
+- **`ADMIN_DISCORD_IDS`** - Admin Discord IDs (comma-separated) - Users who can access admin panel
+- **`CLIENT_DISCORD_IDS`** - Client Discord IDs (comma-separated, optional) - Users who can access client dashboard
+- **`DEVELOPER_KEY`** - Developer key for admin panel access (default: `dev2024` - change in production!)
+- **`NOTIFY_SECRET`** - Secret for bot notification endpoint authentication
+
+### Example `api/.env` - Development
+```bash
+PORT=3001
+NODE_ENV=development
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=http://localhost:3000/auth/discord/callback
+DASHBOARD_URL=http://localhost:3000
+BOT_URL=http://localhost:3002
+CORS_ORIGIN=http://localhost:3000
+ADMIN_DISCORD_IDS=123456789012345678,987654321098765432
+CLIENT_DISCORD_IDS=
+```
+
+### Example `api/.env` - Production
+```bash
+PORT=3001
+NODE_ENV=production
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=https://manihub.xyz/auth/discord/callback
+DASHBOARD_URL=https://manihub.xyz
+BOT_URL=https://manihub.xyz:3002
+CORS_ORIGIN=https://manihub.xyz
+ADMIN_DISCORD_IDS=123456789012345678,987654321098765432
+CLIENT_DISCORD_IDS=
+```
+
+## Bot (`bot/.env`)
+
+### Optional
+- **`API_URL`** - API server URL (default: `http://localhost:3001`)
+- **`BOT_PORT`** - Bot notification server port (default: `3002`)
+- **`DISCORD_CLIENT_ID`** - Discord client ID (optional, for slash commands)
+
+### Example `bot/.env` - Development
+```bash
+API_URL=http://localhost:3001
+BOT_PORT=3002
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+```
+
+### Example `bot/.env` - Production
+```bash
+API_URL=https://manihub.xyz
+BOT_PORT=3002
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+```
+
+## Dashboard (`dashboard/.env`)
+
+### Optional
+- **`REACT_APP_API_URL`** - API server URL (default: `http://localhost:3001`)
+  - Note: React requires `REACT_APP_` prefix for environment variables
+
+### Example `dashboard/.env` - Development
+```bash
+REACT_APP_API_URL=http://localhost:3001
+```
+
+### Example `dashboard/.env` - Production
+```bash
+REACT_APP_API_URL=https://manihub.xyz
+```
+
+## Minecraft Server API (`minecraft-server/.env`)
+
+### Required
+- **`MINECRAFT_API_KEY`** - API key (must match dashboard configuration)
+- **`WHITELIST_FILE`** - Path to existing whitelist.json file
+
+### Optional
+- **`MINECRAFT_API_PORT`** - API server port (default: `3003`)
+- **`NODE_ENV`** - Environment mode (default: `development`)
+- **`SERVER_MODE`** - Server mode: `online` or `offline` (default: `online`)
+- **`RCON_ENABLED`** - Enable RCON: `true` or `false` (default: `false`)
+- **`RCON_HOST`** - RCON host (default: `localhost`)
+- **`RCON_PORT`** - RCON port (default: `25575`)
+- **`RCON_PASSWORD`** - RCON password
+
+### What is RCON?
+
+**RCON (Remote Console)** is a protocol that allows you to execute commands on your Minecraft server remotely without direct access to the server console.
+
+**How it works:**
+- The Minecraft server runs an RCON server on a specific port (usually 25575)
+- External applications (like this API) can connect using the RCON password
+- Commands can be sent to the server (e.g., `whitelist add PlayerName`)
+- The server executes the commands and returns results
+
+**Benefits:**
+- **Automatic whitelist reload** - When a player is added via API, RCON can execute `whitelist reload` so changes take effect immediately
+- **No file editing delays** - Commands execute instantly without waiting for server to detect file changes
+- **More reliable** - Works better with Paper/Spigot servers that cache whitelist data
+
+**When to use:**
+- ✅ **Enable RCON** if you're using Paper/Spigot and want instant whitelist updates
+- ✅ **Enable RCON** if you want automatic `whitelist reload` after adding players
+- ❌ **Disable RCON** if you're using vanilla Minecraft (file editing is sufficient)
+- ❌ **Disable RCON** if you don't have RCON enabled on your server
+
+**Security Note:** RCON password should be strong and different from your server admin password. Only allow RCON connections from trusted IPs.
+
+### Example `minecraft-server/.env`
+```bash
+MINECRAFT_API_PORT=3003
+NODE_ENV=development
+MINECRAFT_API_KEY=your-secure-api-key-here
+WHITELIST_FILE=./whitelist.json
+SERVER_MODE=online
+RCON_ENABLED=false
+RCON_HOST=localhost
+RCON_PORT=25575
+RCON_PASSWORD=your-rcon-password-here
+```
+
+## Root `.env` (Optional)
+
+Global fallback values that can be used by all services if not set in service-specific `.env` files.
+
+### Example Root `.env` - Development
+```bash
+NODE_ENV=development
+PORT=3001
+API_URL=http://localhost:3001
+BOT_PORT=3002
+BOT_URL=http://localhost:3002
+DASHBOARD_URL=http://localhost:3000
+REACT_APP_API_URL=http://localhost:3001
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=http://localhost:3000/auth/discord/callback
+CORS_ORIGIN=http://localhost:3000
+```
+
+### Example Root `.env` - Production
+```bash
+NODE_ENV=production
+PORT=3001
+API_URL=https://manihub.xyz
+BOT_PORT=3002
+BOT_URL=https://manihub.xyz:3002
+DASHBOARD_URL=https://manihub.xyz
+REACT_APP_API_URL=https://manihub.xyz
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=https://manihub.xyz/auth/discord/callback
+CORS_ORIGIN=https://manihub.xyz
+```
+
+## Environment Variable Priority
+
+Variables are loaded in this order (later values override earlier ones):
+1. System environment variables
+2. Root `.env` file (if exists)
+3. Service-specific `.env` file (e.g., `api/.env`)
+
+## Production Recommendations
+
+### Security
+- Use strong, randomly generated keys
+- Never commit `.env` files to version control
+- Use different keys for each environment
+- Rotate keys periodically
+- Set `NODE_ENV=production` in production
+
+### CORS
+- Set `CORS_ORIGIN` to your specific domain in production
+- Example: `CORS_ORIGIN=https://yourdomain.com`
+
+### Discord OAuth
+- Set all Discord OAuth variables in production
+- Use HTTPS URLs for redirect URIs
+- Keep client secret secure
+
+## Quick Setup
+
+1. **Generate encryption key:**
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+2. **Create `.env` files:**
+   ```bash
+   # Copy and edit these files
+   cp api/.env.example api/.env
+   cp bot/.env.example bot/.env
+   cp dashboard/.env.example dashboard/.env
+   cp minecraft-server/.env.example minecraft-server/.env
+   ```
+
+3. **Fill in your values** in each `.env` file
+
+4. **Restart services** to load new environment variables
+
+## Troubleshooting
+
+### "ENCRYPTION_KEY is required"
+- Set `ENCRYPTION_KEY` in `api/.env` or root `.env`
+- Must be at least 32 characters
+
+### "CORS error"
+- Set `CORS_ORIGIN` in `api/.env` to your dashboard URL
+- Or use `*` for development (not recommended for production)
+
+### Variables not loading
+- Check file paths (should be in service directories)
+- Verify `.env` file syntax (no spaces around `=`)
+- Restart the service after changing `.env`

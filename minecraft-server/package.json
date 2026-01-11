@@ -1,0 +1,19 @@
+{
+  "name": "minecraft-whitelist-api",
+  "version": "1.0.0",
+  "description": "API server for Minecraft whitelist management",
+  "main": "whitelist-api.js",
+  "scripts": {
+    "start": "node whitelist-api.js",
+    "dev": "nodemon whitelist-api.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "optionalDependencies": {
+    "mcrcon": "^0.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

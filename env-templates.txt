@@ -1,0 +1,115 @@
+# Environment Variable Templates
+# Copy the relevant section to create your .env files
+
+# ============================================
+# API Server (api/.env) - DEVELOPMENT
+# ============================================
+PORT=3001
+NODE_ENV=development
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=http://localhost:3000/auth/discord/callback
+DASHBOARD_URL=http://localhost:3000
+BOT_URL=http://localhost:3002
+CORS_ORIGIN=http://localhost:3000
+
+# Admin Discord IDs (comma-separated) - Users who can access admin panel
+ADMIN_DISCORD_IDS=123456789012345678,987654321098765432
+
+# Client Discord IDs (comma-separated, optional) - Users who can access client dashboard
+# Leave empty to allow all users, or set specific IDs
+CLIENT_DISCORD_IDS=
+
+# ============================================
+# API Server (api/.env) - PRODUCTION
+# ============================================
+PORT=3001
+NODE_ENV=production
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=https://manihub.xyz/auth/discord/callback
+DASHBOARD_URL=https://manihub.xyz
+BOT_URL=https://manihub.xyz:3002
+CORS_ORIGIN=https://manihub.xyz
+
+# Admin Discord IDs (comma-separated) - Users who can access admin panel
+ADMIN_DISCORD_IDS=123456789012345678,987654321098765432
+
+# Client Discord IDs (comma-separated, optional) - Users who can access client dashboard
+# Leave empty to allow all users, or set specific IDs
+CLIENT_DISCORD_IDS=
+
+# ============================================
+# Bot (bot/.env) - DEVELOPMENT
+# ============================================
+API_URL=http://localhost:3001
+BOT_PORT=3002
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+NOTIFY_SECRET=your-secure-notify-secret-here
+
+# ============================================
+# Bot (bot/.env) - PRODUCTION
+# ============================================
+API_URL=https://manihub.xyz
+BOT_PORT=3002
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+NOTIFY_SECRET=your-secure-notify-secret-here
+
+# ============================================
+# Dashboard (dashboard/.env) - DEVELOPMENT
+# ============================================
+REACT_APP_API_URL=http://localhost:3001
+
+# ============================================
+# Dashboard (dashboard/.env) - PRODUCTION
+# ============================================
+REACT_APP_API_URL=https://manihub.xyz
+
+# ============================================
+# Minecraft Server (minecraft-server/.env)
+# ============================================
+MINECRAFT_API_PORT=3003
+NODE_ENV=development
+MINECRAFT_API_KEY=your-secure-api-key-here
+WHITELIST_FILE=./whitelist.json
+SERVER_MODE=online
+RCON_ENABLED=false
+RCON_HOST=localhost
+RCON_PORT=25575
+RCON_PASSWORD=your-rcon-password-hereHh
+
+# ============================================
+# Root .env (optional - for global fallback)
+# DEVELOPMENT
+# ============================================
+NODE_ENV=development
+PORT=3001
+API_URL=http://localhost:3001
+BOT_PORT=3002
+BOT_URL=http://localhost:3002
+DASHBOARD_URL=http://localhost:3000
+REACT_APP_API_URL=http://localhost:3001
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=http://localhost:3000/auth/discord/callback
+CORS_ORIGIN=http://localhost:3000
+
+# ============================================
+# Root .env (optional - for global fallback)
+# PRODUCTION
+# ============================================
+NODE_ENV=production
+PORT=3001
+API_URL=https://manihub.xyz
+BOT_PORT=3002
+BOT_URL=https://manihub.xyz:3002
+DASHBOARD_URL=https://manihub.xyz
+REACT_APP_API_URL=https://manihub.xyz
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key-here
+DISCORD_CLIENT_ID=your-discord-oauth-client-id
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret
+DISCORD_REDIRECT_URI=https://manihub.xyz/auth/discord/callback
+CORS_ORIGIN=https://manihub.xyz

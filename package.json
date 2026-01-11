@@ -1,0 +1,66 @@
+{
+  "name": "whitelisthub",
+  "version": "1.0.0",
+  "description": "WhitelistHub - Professional Minecraft Whitelist Management System with Discord Integration",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\" \"npm run dev:bot\"",
+    "dev:api": "cd api && nodemon server.js",
+    "dev:dashboard": "cd dashboard && react-scripts start",
+    "dev:bot": "cd bot && nodemon index.js",
+    "start": "cd api && node server.js",
+    "start:api": "cd api && node server.js",
+    "start:bot": "cd bot && node index.js",
+    "build": "cd dashboard && react-scripts build",
+    "build:dashboard": "cd dashboard && react-scripts build",
+    "test": "cd dashboard && react-scripts test",
+    "install:all": "npm install && cd api && npm install && cd ../bot && npm install && cd ../dashboard && npm install",
+    "postinstall": "echo 'Installation complete. Run npm run dev to start all services.'"
+  },
+  "keywords": [
+    "minecraft",
+    "discord",
+    "whitelist",
+    "dashboard"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "discord.js": "^14.14.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "react-router-dom": "^6.20.1",
+    "lucide-react": "^0.294.0"
+  },
+  "optionalDependencies": {
+    "mcrcon": "^0.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

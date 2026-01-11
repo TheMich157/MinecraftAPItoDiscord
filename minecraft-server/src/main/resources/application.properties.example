@@ -1,0 +1,41 @@
+# Minecraft Server API Configuration
+# Copy this file to application.properties and update with your values
+
+# Server Configuration
+server.port=${MINECRAFT_API_PORT:3003}
+
+# API Authentication
+minecraft.server.api-key=${MINECRAFT_API_KEY:your-api-key-here}
+
+# Minecraft Server Paths
+# Server Root Directory - Path to your Minecraft server root folder
+# This is where whitelist.json, ops.json, banned-players.json are located
+minecraft.server.server-root=${MINECRAFT_SERVER_ROOT:./}
+
+# Config Folder - Path to folder containing server configuration files
+# Configuration files like server.properties, eula.txt go here
+# Defaults to {server-root}/config if not specified
+minecraft.server.config-folder=${CONFIG_FOLDER:}
+
+# Whitelist File - Path to whitelist.json (relative to server root or absolute)
+minecraft.server.whitelist-file=${WHITELIST_FILE:whitelist.json}
+
+# Server Mode: ONLINE or OFFLINE
+minecraft.server.mode=${SERVER_MODE:ONLINE}
+
+# RCON Configuration (Optional)
+minecraft.server.rcon.enabled=${RCON_ENABLED:false}
+minecraft.server.rcon.host=${RCON_HOST:localhost}
+minecraft.server.rcon.port=${RCON_PORT:25575}
+minecraft.server.rcon.password=${RCON_PASSWORD:}
+
+# Example File Structure:
+# /path/to/minecraft/server/
+# ├── config/
+# │   ├── server.properties
+# │   ├── eula.txt
+# │   └── (other config files)
+# ├── whitelist.json       ← Data files in root
+# ├── ops.json             ← Data files in root
+# ├── banned-players.json  ← Data files in root
+# └── (other server files)

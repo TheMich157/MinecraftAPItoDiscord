@@ -1,0 +1,114 @@
+# Security Improvements - Bot Token Encryption
+
+## Overview
+
+The bot token is now securely encrypted using AES-256-GCM encryption before being stored in `config.json`. This prevents token leaks if the configuration file is accidentally exposed.
+
+## Changes Made
+
+### 1. Encryption Module (`api/crypto-utils.js`)
+- New module for encrypting/decrypting sensitive data
+- Uses AES-256-GCM encryption algorithm
+- Requires `ENCRYPTION_KEY` environment variable (minimum 32 characters)
+- Automatic decryption when reading tokens
+
+### 2. API Server (`api/server.js`)
+- **Encryption on Save:** Bot tokens are encrypted before saving to `config.json`
+- **Decryption on Read:** Tokens are automatically decrypted when returned to admin panel
+- **Error Handling:** Returns clear error if encryption key is missing
+- Removed unnecessary comments for cleaner code
+
+### 3. Discord Bot (`bot/index.js`)
+- **Automatic Decryption:** Bot automatically decrypts token when reading config
+- **Fallback Support:** Handles both encrypted and plain-text tokens (for migration)
+- Removed unnecessary comments for cleaner code
+
+### 4. Minecraft Server API (`minecraft-server/whitelist-api.js`)
+- Removed unnecessary comments
+- Cleaned up code structure
+- Maintained all security features (path validation, file locking, rate limiting)
+
+## Setup Required
+
+### 1. Generate Encryption Key
+
+Generate a secure encryption key (at least 32 characters):
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Or use any secure random string generator.
+
+### 2. Set Environment Variable
+
+Add to `api/.env`:
+
+```bash
+ENCRYPTION_KEY=your-generated-encryption-key-here
+```
+
+**Important:** 
+- Keep this key secure and never commit it to version control
+- Use a different key for each environment (dev, staging, production)
+- If you lose the key, you'll need to re-enter the bot token
+
+### 3. Migration
+
+**Existing Installations:**
+- Existing plain-text tokens will be automatically encrypted on next save
+- The system handles both encrypted and plain-text tokens during migration
+- No manual migration needed
+
+## Security Features
+
+1. **AES-256-GCM Encryption**
+   - Industry-standard encryption algorithm
+   - Authenticated encryption (prevents tampering)
+   - Unique IV for each encryption
+
+2. **Environment-Based Key Storage**
+   - Encryption key never stored in code or config files
+   - Must be set via environment variable
+   - Different keys per environment
+
+3. **Automatic Handling**
+   - Encryption/decryption happens automatically
+   - No changes needed in admin panel or bot code
+   - Transparent to end users
+
+4. **Error Handling**
+   - Clear error messages if key is missing
+   - Graceful fallback for migration period
+   - Prevents accidental token exposure
+
+## Code Quality Improvements
+
+- Removed unnecessary comments
+- Cleaned up code structure
+- Improved readability
+- Maintained all functionality
+
+## Files Modified
+
+- `api/crypto-utils.js` (new)
+- `api/server.js`
+- `bot/index.js`
+- `minecraft-server/whitelist-api.js`
+- `README.md` (updated with encryption key setup)
+
+## Testing
+
+1. Set `ENCRYPTION_KEY` in `api/.env`
+2. Start API server
+3. Login to admin panel
+4. Save bot token
+5. Check `data/config.json` - token should be encrypted
+6. Restart bot - should decrypt and login successfully
+
+## Notes
+
+- The encryption key is critical - back it up securely
+- Rotate keys periodically for enhanced security
+- Use strong, random keys (32+ characters)
+- Never share encryption keys or commit them to version control
