@@ -22,49 +22,6 @@ function requireServerRole(roleAllowlist) {
     if (!role || !roleAllowlist.includes(role)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-
-    let sanitizedServers = currentConfig.servers || {};
-    if (servers !== undefined) {
-      sanitizedServers = {};
-      if (servers && typeof servers === 'object') {
-        for (const [serverId, serverCfg] of Object.entries(servers)) {
-          if (typeof serverId !== 'string' || serverId.trim().length === 0) continue;
-          const safeServerId = sanitizeString(serverId, 100);
-
-          const apiKeyValue = serverCfg && typeof serverCfg.apiKey === 'string' ? sanitizeString(serverCfg.apiKey, 200) : '';
-          const nameValue = serverCfg && typeof serverCfg.name === 'string' ? sanitizeString(serverCfg.name, 100) : safeServerId;
-          const ipValue = serverCfg && typeof serverCfg.ip === 'string' ? sanitizeString(serverCfg.ip, 100) : '';
-          const portValueRaw = serverCfg && serverCfg.port !== undefined ? parseInt(serverCfg.port, 10) : undefined;
-          const portValue = Number.isFinite(portValueRaw) && portValueRaw >= 1 && portValueRaw <= 65535 ? portValueRaw : undefined;
-          const onlineModeValue = serverCfg && serverCfg.onlineMode !== undefined ? !!serverCfg.onlineMode : undefined;
-          const whitelistEnabledValue = serverCfg && serverCfg.whitelistEnabled !== undefined ? !!serverCfg.whitelistEnabled : undefined;
-
-          const clientList = Array.isArray(serverCfg?.clientDiscordIds)
-            ? serverCfg.clientDiscordIds.filter(id => validateDiscordId(id))
-            : [];
-
-          const members = serverCfg?.members && typeof serverCfg.members === 'object' ? serverCfg.members : {};
-          const sanitizedMembers = {};
-          for (const [memberId, memberInfo] of Object.entries(members)) {
-            if (!validateDiscordId(memberId)) continue;
-            const role = memberInfo && typeof memberInfo.role === 'string' ? memberInfo.role : 'viewer';
-            if (!['owner', 'dev', 'viewer'].includes(role)) continue;
-            sanitizedMembers[memberId] = { role };
-          }
-
-          sanitizedServers[safeServerId] = {
-            ...(apiKeyValue ? { apiKey: apiKeyValue } : {}),
-            name: nameValue,
-            ...(ipValue ? { ip: ipValue } : {}),
-            ...(portValue !== undefined ? { port: portValue } : {}),
-            ...(onlineModeValue !== undefined ? { onlineMode: onlineModeValue } : {}),
-            ...(whitelistEnabledValue !== undefined ? { whitelistEnabled: whitelistEnabledValue } : {}),
-            members: sanitizedMembers,
-            clientDiscordIds: clientList
-          };
-        }
-      }
-    }
     next();
   };
 }
@@ -505,6 +462,49 @@ app.post('/api/config', rateLimit, requireAdmin, async (req, res) => {
           const safeServerId = sanitizeString(serverId, 100);
           const apiKeyValue = serverCfg && typeof serverCfg.apiKey === 'string' ? sanitizeString(serverCfg.apiKey, 200) : '';
           sanitizedMinecraftServers[safeServerId] = { apiKey: apiKeyValue };
+        }
+      }
+    }
+
+    let sanitizedServers = currentConfig.servers || {};
+    if (servers !== undefined) {
+      sanitizedServers = {};
+      if (servers && typeof servers === 'object') {
+        for (const [serverId, serverCfg] of Object.entries(servers)) {
+          if (typeof serverId !== 'string' || serverId.trim().length === 0) continue;
+          const safeServerId = sanitizeString(serverId, 100);
+
+          const apiKeyValue = serverCfg && typeof serverCfg.apiKey === 'string' ? sanitizeString(serverCfg.apiKey, 200) : '';
+          const nameValue = serverCfg && typeof serverCfg.name === 'string' ? sanitizeString(serverCfg.name, 100) : safeServerId;
+          const ipValue = serverCfg && typeof serverCfg.ip === 'string' ? sanitizeString(serverCfg.ip, 100) : '';
+          const portValueRaw = serverCfg && serverCfg.port !== undefined ? parseInt(serverCfg.port, 10) : undefined;
+          const portValue = Number.isFinite(portValueRaw) && portValueRaw >= 1 && portValueRaw <= 65535 ? portValueRaw : undefined;
+          const onlineModeValue = serverCfg && serverCfg.onlineMode !== undefined ? !!serverCfg.onlineMode : undefined;
+          const whitelistEnabledValue = serverCfg && serverCfg.whitelistEnabled !== undefined ? !!serverCfg.whitelistEnabled : undefined;
+
+          const clientList = Array.isArray(serverCfg?.clientDiscordIds)
+            ? serverCfg.clientDiscordIds.filter(id => validateDiscordId(id))
+            : [];
+
+          const members = serverCfg?.members && typeof serverCfg.members === 'object' ? serverCfg.members : {};
+          const sanitizedMembers = {};
+          for (const [memberId, memberInfo] of Object.entries(members)) {
+            if (!validateDiscordId(memberId)) continue;
+            const role = memberInfo && typeof memberInfo.role === 'string' ? memberInfo.role : 'viewer';
+            if (!['owner', 'dev', 'viewer'].includes(role)) continue;
+            sanitizedMembers[memberId] = { role };
+          }
+
+          sanitizedServers[safeServerId] = {
+            ...(apiKeyValue ? { apiKey: apiKeyValue } : {}),
+            name: nameValue,
+            ...(ipValue ? { ip: ipValue } : {}),
+            ...(portValue !== undefined ? { port: portValue } : {}),
+            ...(onlineModeValue !== undefined ? { onlineMode: onlineModeValue } : {}),
+            ...(whitelistEnabledValue !== undefined ? { whitelistEnabled: whitelistEnabledValue } : {}),
+            members: sanitizedMembers,
+            clientDiscordIds: clientList
+          };
         }
       }
     }
