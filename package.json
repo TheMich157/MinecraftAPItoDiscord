@@ -14,7 +14,10 @@
     "build": "cd dashboard && react-scripts build",
     "build:dashboard": "cd dashboard && react-scripts build",
     "test": "cd dashboard && react-scripts test",
-    "install:all": "npm install && cd api && npm install && cd ../bot && npm install && cd ../dashboard && npm install",
+    "install:all": "npm install && npm run install:api && npm run install:bot && npm run install:dashboard",
+    "install:api": "cd api && npm install",
+    "install:bot": "cd bot && npm install",
+    "install:dashboard": "cd dashboard && npm install",
     "postinstall": "echo 'Installation complete. Run npm run dev to start all services.'"
   },
   "keywords": [
@@ -45,22 +48,5 @@
   "devDependencies": {
     "nodemon": "^3.0.2",
     "concurrently": "^8.2.2"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
   }
 }
