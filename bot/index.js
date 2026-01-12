@@ -71,6 +71,69 @@ const client = new Client({
 const app = express();
 app.use(express.json());
 
+async function sendNotification(payload) {
+  const { type, userId, message, minecraftUsername, discordUsername } = payload || {};
+
+  const config = await readConfig();
+
+  if (type === 'approval') {
+    if (userId) {
+      try {
+        const user = await client.users.fetch(userId);
+        if (user) {
+          const notificationEmbed = new EmbedBuilder()
+            .setTitle('Whitelist Request Approved!')
+            .setDescription(message || `Your whitelist request has been approved!`)
+            .addFields(
+              { name: 'Minecraft Username', value: minecraftUsername || 'Not provided', inline: true }
+            )
+            .setColor(0x00ff00)
+            .setTimestamp();
+
+          await user.send({ embeds: [notificationEmbed] });
+        }
+      } catch (error) {
+        console.log('Could not DM user');
+      }
+    }
+
+    if (config && config.notificationChannelId) {
+      try {
+        const channel = await client.channels.fetch(config.notificationChannelId);
+        if (channel) {
+          const channelEmbed = new EmbedBuilder()
+            .setTitle('Whitelist Request Approved')
+            .setDescription(`A whitelist request has been approved`)
+            .addFields(
+              { name: 'Discord User', value: discordUsername ? `<@${userId}> (${discordUsername})` : `<@${userId}>`, inline: true },
+              { name: 'Minecraft Username', value: minecraftUsername || 'Not provided', inline: true }
+            )
+            .setColor(0x00ff00)
+            .setTimestamp();
+
+          await channel.send({ embeds: [channelEmbed] });
+        }
+      } catch (error) {
+        console.error('Error sending to channel:', error);
+      }
+    }
+
+    return true;
+  }
+
+  if (type === 'channel') {
+    if (config && config.notificationChannelId) {
+      const channel = await client.channels.fetch(config.notificationChannelId);
+      if (channel) {
+        await channel.send({ content: message });
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
 function verifyNotifyAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || authHeader !== `Bearer ${process.env.NOTIFY_SECRET || 'change-this-secret'}`) {
@@ -80,61 +143,8 @@ function verifyNotifyAuth(req, res, next) {
 }
 
 app.post('/notify', verifyNotifyAuth, async (req, res) => {
-  const { type, userId, message, minecraftUsername, discordUsername } = req.body;
-  
   try {
-    const config = await readConfig();
-    
-    if (type === 'approval') {
-      if (userId) {
-        try {
-          const user = await client.users.fetch(userId);
-          if (user) {
-            const notificationEmbed = new EmbedBuilder()
-              .setTitle('Whitelist Request Approved!')
-              .setDescription(message || `Your whitelist request has been approved!`)
-              .addFields(
-                { name: 'Minecraft Username', value: minecraftUsername || 'Not provided', inline: true }
-              )
-              .setColor(0x00ff00)
-              .setTimestamp();
-            
-            await user.send({ embeds: [notificationEmbed] });
-          }
-        } catch (error) {
-          console.log('Could not DM user');
-        }
-      }
-      
-      if (config && config.notificationChannelId) {
-        try {
-          const channel = await client.channels.fetch(config.notificationChannelId);
-          if (channel) {
-            const channelEmbed = new EmbedBuilder()
-              .setTitle('Whitelist Request Approved')
-              .setDescription(`A whitelist request has been approved`)
-              .addFields(
-                { name: 'Discord User', value: discordUsername ? `<@${userId}> (${discordUsername})` : `<@${userId}>`, inline: true },
-                { name: 'Minecraft Username', value: minecraftUsername || 'Not provided', inline: true }
-              )
-              .setColor(0x00ff00)
-              .setTimestamp();
-            
-            await channel.send({ embeds: [channelEmbed] });
-          }
-        } catch (error) {
-          console.error('Error sending to channel:', error);
-        }
-      }
-    } else if (type === 'channel') {
-      if (config && config.notificationChannelId) {
-        const channel = await client.channels.fetch(config.notificationChannelId);
-        if (channel) {
-          await channel.send({ content: message });
-        }
-      }
-    }
-    
+    await sendNotification(req.body);
     res.json({ success: true });
   } catch (error) {
     console.error('Error sending notification:', error);
@@ -146,11 +156,13 @@ if (validateConfig()) {
   console.log('Bot configuration validated successfully');
 }
 
-const LISTEN_PORT = BOT_PORT || 3002;
-app.listen(LISTEN_PORT, () => {
-  console.log(`Bot notification server running on port ${LISTEN_PORT}`);
-  console.log(`API URL: ${API_URL}`);
-});
+function startNotifyServer(portOverride) {
+  const listenPort = portOverride || BOT_PORT || 3002;
+  return app.listen(listenPort, () => {
+    console.log(`Bot notification server running on port ${listenPort}`);
+    console.log(`API URL: ${API_URL}`);
+  });
+}
 
 async function registerCommands() {
   const commands = [
@@ -992,4 +1004,14 @@ async function startBot() {
   }
 }
 
-startBot();
+if (require.main === module) {
+  startNotifyServer();
+  startBot();
+} else {
+  module.exports = {
+    notifyApp: app,
+    startNotifyServer,
+    startBot,
+    sendNotification
+  };
+}

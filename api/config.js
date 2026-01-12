@@ -15,10 +15,6 @@ const config = {
     url: process.env.DASHBOARD_URL || 'http://localhost:3000'
   },
   
-  bot: {
-    url: process.env.BOT_URL || 'http://localhost:3002'
-  },
-  
   encryption: {
     key: process.env.ENCRYPTION_KEY || ''
   },

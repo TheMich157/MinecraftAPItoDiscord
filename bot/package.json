@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js"
+    ,"dashboard:dev": "cd ../dashboard && npm run start",
+    "dashboard:build": "cd ../dashboard && npm run build",
+    "dashboard:start": "cd ../dashboard && npm run start"
   },
   "dependencies": {
     "discord.js": "^14.14.1",

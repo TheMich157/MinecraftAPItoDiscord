@@ -7,6 +7,13 @@ const { encrypt, decrypt } = require('./crypto-utils');
 const { config: envConfig, validateConfig } = require('./config');
 const { sanitizeString, validateDiscordId, validateMinecraftUsername, validateUrl, requireAdmin, rateLimit } = require('./middleware');
 
+let sendBotNotification = null;
+try {
+  ({ sendNotification: sendBotNotification } = require('../bot/index.js'));
+} catch (error) {
+  // Bot module not available in this runtime (or not installed). Notifications will be skipped.
+}
+
 const app = express();
 const PORT = envConfig.port;
 
@@ -14,7 +21,6 @@ const DISCORD_CLIENT_ID = envConfig.discord.clientId;
 const DISCORD_CLIENT_SECRET = envConfig.discord.clientSecret;
 const DISCORD_REDIRECT_URI = envConfig.discord.redirectUri;
 const DASHBOARD_URL = envConfig.dashboard.url;
-const BOT_URL = envConfig.bot.url;
 
 const corsOptions = {
   origin: envConfig.cors.origin === '*' ? '*' : envConfig.cors.origin.split(',').map(o => o.trim()),
@@ -35,6 +41,16 @@ async function ensureDataDir() {
     await fs.mkdir(DATA_DIR, { recursive: true });
   } catch (error) {
     console.error('Error creating data directory:', error);
+  }
+}
+
+async function initApi() {
+  await ensureDataDir();
+  try {
+    validateConfig();
+  } catch (error) {
+    // validateConfig may throw in production; keep init call-site in control.
+    throw error;
   }
 }
 
@@ -394,20 +410,17 @@ app.put('/api/requests/:id', rateLimit, requireAdmin, async (req, res) => {
       }
       
       try {
-        await axios.post(`${BOT_URL}/notify`, {
-          type: 'approval',
-          userId: requests[requestIndex].discordId,
-          discordUsername: requests[requestIndex].discordUsername,
-          minecraftUsername: finalUsername,
-          message: `Your whitelist request has been approved!`
-        }, {
-          headers: {
-            'Authorization': `Bearer ${envConfig.notifySecret || process.env.NOTIFY_SECRET || 'change-this-secret'}`
-          },
-          timeout: 5000
-        }).catch(() => {
-          console.log('Bot notification server not available');
-        });
+        if (typeof sendBotNotification === 'function') {
+          await sendBotNotification({
+            type: 'approval',
+            userId: requests[requestIndex].discordId,
+            discordUsername: requests[requestIndex].discordUsername,
+            minecraftUsername: finalUsername,
+            message: `Your whitelist request has been approved!`
+          });
+        } else {
+          console.log('Bot notification not available (bot module not loaded)');
+        }
       } catch (error) {
         console.log('Direct user notification not available');
       }
@@ -527,10 +540,8 @@ app.get('/api/health', (req, res) => {
 
 async function startServer(portOverride) {
   try {
-    await ensureDataDir();
-    if (validateConfig()) {
-      console.log('Configuration validated successfully');
-    }
+    await initApi();
+    console.log('Configuration validated successfully');
 
     const listenPort = portOverride || PORT;
     const server = app.listen(listenPort, () => {
@@ -552,5 +563,5 @@ async function startServer(portOverride) {
 if (require.main === module) {
   startServer();
 } else {
-  module.exports = { app, startServer };
+  module.exports = { app, startServer, initApi };
 }

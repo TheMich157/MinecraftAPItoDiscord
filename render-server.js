@@ -1,34 +1,75 @@
 const express = require('express');
 const path = require('path');
 
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const wsHub = require('./wsd-hub');
+
 // Import the API app and helper
-const { app: apiApp, startServer: startApi } = require('./api/server');
+const { app: apiApp, initApi } = require('./api/server');
+
+let botModule = null;
+try {
+  botModule = require('./bot/index.js');
+} catch (error) {
+  // Bot is optional in some deployments
+}
 
 const PORT = process.env.PORT || 3000;
 
-const server = express();
+const app = express();
 
 // Mount API app - API routes are defined on apiApp (they start with /api/...)
-server.use(apiApp);
+app.use(apiApp);
+
+// Mount bot notify endpoint without a separate port
+if (botModule && botModule.notifyApp) {
+  app.use('/internal', botModule.notifyApp);
+}
 
 // Serve static dashboard build
 const buildPath = path.join(__dirname, 'dashboard', 'build');
-server.use(express.static(buildPath));
+app.use(express.static(buildPath));
 
 // SPA fallback - send index.html for any non-API route
-server.get('*', (req, res) => {
+app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(buildPath, 'index.html'));
 });
 
-server.listen(PORT, () => {
-  console.log(`Render server running on port ${PORT}`);
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({ server, path: '/ws' });
+wss.on('connection', (ws, req) => {
+  ws.send(JSON.stringify({ type: 'hello', ts: Date.now() }));
+
+  ws.on('message', async (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      await wsHub.handleMessage(ws, msg);
+    } catch (err) {
+      // ignore
+    }
+  });
+
+  ws.on('close', () => {
+    wsHub.unregister(ws);
+  });
 });
 
-// Also start internal API listeners if needed (startApi will ensure data dir and validation)
-// Note: apiApp is already mounted; startApi is available if external listeners are required.
-if (typeof startApi === 'function') {
-  // Do not start a separate listener to avoid port conflicts; keep API mounted only.
-}
+server.listen(PORT, async () => {
+  console.log(`Unified server running on port ${PORT}`);
 
-module.exports = server;
+  if (typeof initApi === 'function') {
+    try {
+      await initApi();
+    } catch (error) {
+      // ignore
+    }
+  }
+
+  if (botModule && typeof botModule.startBot === 'function') {
+    botModule.startBot();
+  }
+});
+module.exports = app;

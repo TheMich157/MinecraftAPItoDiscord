@@ -9,7 +9,7 @@
     "dev:api": "cd api && nodemon server.js",
     "dev:dashboard": "cd dashboard && react-scripts start",
     "dev:bot": "cd bot && nodemon index.js",
-    "start": "cd api && node server.js",
+    "start": "node render-server.js",
     "start:all": "concurrently \"npm run start:api\" \"npm run start:bot\" \"npm run start:render\"",
     "start:web": "npm run build:dashboard && npm run start:render",
     "start:render": "node render-server.js",
@@ -30,7 +30,7 @@
     "whitelist",
     "dashboard"
   ],
-  "author": "",
+  "author": "Michael15541",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
@@ -40,6 +40,7 @@
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
     "discord.js": "^14.14.1",
+    "ws": "^8.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
