@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Minecraft Whitelist Management Dashboard",
   "private": true,
+  "proxy": "http://localhost:3001",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
