@@ -26,8 +26,8 @@ function RoleSelector({ user, onSelectRole }) {
             className="role-option client-option"
           >
             <Users size={48} />
-            <h2>Client Dashboard</h2>
-            <p>Submit whitelist requests and view your request status</p>
+            <h2>Server Owner Panel</h2>
+            <p>Manage your server, invite staff, and handle whitelist requests</p>
           </button>
         </div>
       </div>

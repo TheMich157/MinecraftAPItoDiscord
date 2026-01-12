@@ -21,12 +21,38 @@ public final class WsBridge {
 
     private volatile WebSocket ws;
     private final AtomicBoolean started = new AtomicBoolean(false);
+    private final AtomicBoolean authed = new AtomicBoolean(false);
 
     public WsBridge(WhitelistPlugin plugin, String backendUrl, String apiKey, String serverId) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.backendUrl = Objects.requireNonNull(backendUrl, "backendUrl");
         this.apiKey = Objects.requireNonNull(apiKey, "apiKey");
         this.serverId = serverId == null ? "default" : serverId;
+    }
+
+    public boolean isReady() {
+        return started.get() && authed.get() && ws != null;
+    }
+
+    public void sendEvent(String eventType, String payloadJsonObject) {
+        if (!isReady()) return;
+        if (eventType == null || eventType.isBlank()) return;
+        String payload = payloadJsonObject == null || payloadJsonObject.isBlank() ? "{}" : payloadJsonObject;
+        String msg = "{\"type\":\"event\",\"eventType\":" + jsonString(eventType) + ",\"payload\":" + payload + ",\"serverId\":" + jsonString(serverId) + "}";
+        try {
+            ws.sendText(msg, true);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void sendState(String payloadJsonObject) {
+        if (!isReady()) return;
+        String payload = payloadJsonObject == null || payloadJsonObject.isBlank() ? "{}" : payloadJsonObject;
+        String msg = "{\"type\":\"state\",\"payload\":" + payload + ",\"serverId\":" + jsonString(serverId) + "}";
+        try {
+            ws.sendText(msg, true);
+        } catch (Exception ignored) {
+        }
     }
 
     public void start() {
@@ -45,6 +71,7 @@ public final class WsBridge {
 
     public void stop() {
         started.set(false);
+        authed.set(false);
         WebSocket socket = ws;
         ws = null;
         if (socket != null) {
@@ -62,6 +89,7 @@ public final class WsBridge {
         @Override
         public void onOpen(WebSocket webSocket) {
             webSocket.request(1);
+            authed.set(false);
             String auth = "{\"type\":\"auth\",\"apiKey\":" + jsonString(apiKey) + ",\"serverId\":" + jsonString(serverId) + "}";
             webSocket.sendText(auth, true);
         }
@@ -99,6 +127,15 @@ public final class WsBridge {
         private void handleMessage(String json) {
             String type = extractJsonString(json, "type");
             if (type == null) return;
+
+            if ("auth_result".equals(type)) {
+                if (json.contains("\"ok\":true") || json.contains("\"ok\":1")) {
+                    authed.set(true);
+                } else {
+                    authed.set(false);
+                }
+                return;
+            }
 
             if ("whitelist_add".equals(type)) {
                 String username = extractJsonString(json, "username");

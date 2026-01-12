@@ -49,15 +49,14 @@ function Login({ onLogin }) {
         const { user: userData, roles } = response.data;
         const authToken = userData.discordId;
         localStorage.setItem('authToken', authToken);
-        onLogin(userData, roles.isAdmin, roles.isClient, authToken);
-        if (roles.isAdmin && roles.isClient) {
+        const hasServers = Array.isArray(roles?.servers) && roles.servers.length > 0;
+        onLogin(userData, roles.isAdmin, roles, authToken);
+        if (roles.isAdmin && hasServers) {
           window.location.href = '/';
         } else if (roles.isAdmin) {
           window.location.href = '/admin';
-        } else if (roles.isClient) {
-          window.location.href = '/dashboard';
         } else {
-          setError('Access denied');
+          window.location.href = '/dashboard';
         }
       } else {
         setError(response.data?.error || 'Access denied');

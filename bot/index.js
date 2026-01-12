@@ -791,15 +791,26 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply({ embeds: [errorEmbed] });
       }
 
-      const clientIds = Array.isArray(config.clientDiscordIds) ? config.clientDiscordIds : [];
-
-      if (clientIds.length === 0) {
-        const errorEmbed = createErrorEmbed('Authorization Error', 'Access denied. No client users configured.');
+      const serverId = (config.minecraftServerId || 'default').trim();
+      const serverCfg = config.servers && typeof config.servers === 'object' ? config.servers[serverId] : null;
+      if (!serverCfg) {
+        const errorEmbed = createErrorEmbed('Configuration Error', `Server not configured: ${serverId}. Please contact a platform admin.`);
         return interaction.editReply({ embeds: [errorEmbed] });
       }
 
-      if (!clientIds.includes(userId)) {
-        const errorEmbed = createErrorEmbed('Authorization Error', 'You are not authorized to request whitelist access.');
+      if (serverCfg.whitelistEnabled === false) {
+        const errorEmbed = createErrorEmbed('Whitelist Disabled', 'Whitelist requests are currently disabled for this server.');
+        return interaction.editReply({ embeds: [errorEmbed] });
+      }
+
+      const allow = Array.isArray(serverCfg.clientDiscordIds) ? serverCfg.clientDiscordIds : [];
+      if (allow.length === 0) {
+        const errorEmbed = createErrorEmbed('Authorization Error', 'Access denied. No client users configured for this server.');
+        return interaction.editReply({ embeds: [errorEmbed] });
+      }
+
+      if (!allow.includes(userId)) {
+        const errorEmbed = createErrorEmbed('Authorization Error', 'You are not authorized to request whitelist access for this server.');
         return interaction.editReply({ embeds: [errorEmbed] });
       }
 
@@ -811,7 +822,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       try {
-        const response = await axios.post(`${API_URL}/api/requests`, {
+        const response = await axios.post(`${API_URL}/api/servers/${encodeURIComponent(serverId)}/requests`, {
           discordId: userId,
           discordUsername: interaction.user.username,
           minecraftUsername: minecraftUsername

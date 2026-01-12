@@ -14,8 +14,9 @@ const API_URL = process.env.REACT_APP_API_URL || '';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isDeveloper, setIsDeveloper] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const [hasServers, setHasServers] = useState(false);
   const [user, setUser] = useState(null);
+  const [roles, setRoles] = useState({ isAdmin: false, servers: [], canRegister: false });
   const [showRoleSelector, setShowRoleSelector] = useState(false);
 
   useEffect(() => {
@@ -23,37 +24,47 @@ function App() {
     const savedUser = localStorage.getItem('user');
     const savedAuth = localStorage.getItem('isAuthenticated');
     const savedDev = localStorage.getItem('isDeveloper');
-    const savedClient = localStorage.getItem('isClient');
+    const savedRoles = localStorage.getItem('roles');
     
     if (savedUser && savedAuth === 'true') {
       const userData = JSON.parse(savedUser);
       setUser(userData);
       setIsAuthenticated(true);
-      setIsDeveloper(savedDev === 'true');
-      setIsClient(savedClient === 'true');
+      const isAdmin = savedDev === 'true';
+      setIsDeveloper(isAdmin);
+      let parsedRoles = { isAdmin, servers: [], canRegister: false };
+      try {
+        parsedRoles = savedRoles ? JSON.parse(savedRoles) : parsedRoles;
+      } catch {
+      }
+      setRoles(parsedRoles);
+      const serverCount = Array.isArray(parsedRoles.servers) ? parsedRoles.servers.length : 0;
+      setHasServers(serverCount > 0);
       
       // Check if user has both roles
-      if (savedDev === 'true' && savedClient === 'true') {
+      if (isAdmin && serverCount > 0) {
         setShowRoleSelector(true);
       }
     }
   }, []);
 
-  const handleLogin = (userData, developer = false, isClientUser = false, authToken = null) => {
+  const handleLogin = (userData, developer = false, userRoles = { isAdmin: false, servers: [], canRegister: false }, authToken = null) => {
     setUser(userData);
     setIsAuthenticated(true);
-    setIsDeveloper(developer);
-    setIsClient(isClientUser);
+    setIsDeveloper(!!developer);
+    setRoles(userRoles || { isAdmin: !!developer, servers: [], canRegister: false });
+    const serverCount = Array.isArray(userRoles?.servers) ? userRoles.servers.length : 0;
+    setHasServers(serverCount > 0);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('isAuthenticated', 'true');
-    localStorage.setItem('isDeveloper', developer.toString());
-    localStorage.setItem('isClient', isClientUser.toString());
+    localStorage.setItem('isDeveloper', (!!developer).toString());
+    localStorage.setItem('roles', JSON.stringify(userRoles || { isAdmin: !!developer, servers: [], canRegister: false }));
     if (authToken) {
       localStorage.setItem('authToken', authToken);
     }
     
     // Check if user has both roles
-    if (developer && isClientUser) {
+    if (developer && serverCount > 0) {
       setShowRoleSelector(true);
     }
   };
@@ -61,16 +72,12 @@ function App() {
   const handleRoleSelect = (role) => {
     if (role === 'admin') {
       setIsDeveloper(true);
-      setIsClient(false);
       localStorage.setItem('isDeveloper', 'true');
-      localStorage.setItem('isClient', 'false');
       setShowRoleSelector(false);
       window.location.href = '/admin';
     } else {
       setIsDeveloper(false);
-      setIsClient(true);
       localStorage.setItem('isDeveloper', 'false');
-      localStorage.setItem('isClient', 'true');
       setShowRoleSelector(false);
       window.location.href = '/dashboard';
     }
@@ -80,12 +87,13 @@ function App() {
     setUser(null);
     setIsAuthenticated(false);
     setIsDeveloper(false);
-    setIsClient(false);
+    setHasServers(false);
+    setRoles({ isAdmin: false, servers: [], canRegister: false });
     setShowRoleSelector(false);
     localStorage.removeItem('user');
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('isDeveloper');
-    localStorage.removeItem('isClient');
+    localStorage.removeItem('roles');
     localStorage.removeItem('authToken');
     sessionStorage.removeItem('authToken');
   };
@@ -121,7 +129,7 @@ function App() {
           <Route 
             path="/dashboard" 
             element={
-              isAuthenticated && (isClient || isDeveloper) ? (
+              isAuthenticated && (!isDeveloper || hasServers || roles.canRegister) ? (
                 <Dashboard user={user} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />

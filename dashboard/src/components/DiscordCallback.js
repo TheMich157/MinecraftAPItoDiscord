@@ -37,11 +37,12 @@ function DiscordCallback({ onLogin }) {
         localStorage.setItem('authToken', authToken);
         
         // Call parent login handler
-        onLogin(userData, roles.isAdmin, roles.isClient, authToken);
+        const hasServers = Array.isArray(roles?.servers) && roles.servers.length > 0;
+        onLogin(userData, roles.isAdmin, roles, authToken);
         
         // If user has both roles, they'll see role selector
         // Otherwise redirect based on role
-        if (roles.isAdmin && roles.isClient) {
+        if (roles.isAdmin && hasServers) {
           // Role selector will be shown by App.js
           window.location.href = '/';
         } else if (roles.isAdmin) {
