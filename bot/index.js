@@ -146,8 +146,9 @@ if (validateConfig()) {
   console.log('Bot configuration validated successfully');
 }
 
-app.listen(BOT_PORT, () => {
-  console.log(`Bot notification server running on port ${BOT_PORT}`);
+const LISTEN_PORT = BOT_PORT || 3002;
+app.listen(LISTEN_PORT, () => {
+  console.log(`Bot notification server running on port ${LISTEN_PORT}`);
   console.log(`API URL: ${API_URL}`);
 });
 
@@ -248,8 +249,8 @@ async function registerCommands() {
     return;
   }
 
-  const rest = new REST({ version: '10' }).setToken(config.botToken);
-  const clientId = client.user?.id || config.clientId || envConfig.discordClientId;
+  const rest = new REST({ version: '10' }).setToken(config.botToken || process.env.BOT_TOKEN || envConfig.botToken);
+  const clientId = client.application?.id || client.user?.id || config.clientId || envConfig.discordClientId || process.env.DISCORD_CLIENT_ID;
 
   if (!clientId) {
     console.error('Client ID not found');
@@ -264,7 +265,7 @@ async function registerCommands() {
     );
     console.log('Slash commands registered successfully');
   } catch (error) {
-    console.error('Error registering commands:', error);
+    console.error('Error registering commands:', error?.response?.data || error);
   }
 }
 
@@ -947,12 +948,16 @@ async function initializeConsoleMirroring() {
 client.once('ready', async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
   const config = await readConfig();
-  if (config && !config.clientId) {
-    const encryptedConfig = await fs.readFile(path.join(DATA_DIR, 'config.json'), 'utf8');
-    const configData = JSON.parse(encryptedConfig);
-    configData.clientId = client.user.id;
-    await fs.writeFile(path.join(DATA_DIR, 'config.json'), JSON.stringify(configData, null, 2));
-  }
+    if (config && !config.clientId) {
+      try {
+        const encryptedConfig = await fs.readFile(path.join(DATA_DIR, 'config.json'), 'utf8');
+        const configData = JSON.parse(encryptedConfig);
+        configData.clientId = client.user.id;
+        await fs.writeFile(path.join(DATA_DIR, 'config.json'), JSON.stringify(configData, null, 2));
+      } catch (err) {
+        console.warn('[CONFIG] Could not persist clientId to config.json:', err.message || err);
+      }
+    }
   await registerCommands();
 
   if (envConfig.rcon.enabled) {

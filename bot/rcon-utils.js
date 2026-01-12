@@ -6,7 +6,7 @@ let mcrcon = null;
 try {
   mcrcon = require('mcrcon');
 } catch (error) {
-  console.warn('mcrcon package not installed. RCON features will be limited.');
+  console.warn('mcrcon package not installed. RCON features will be limited. To enable, install the optional "mcrcon" package or set RCON_DISABLED.');
 }
 
 const connectionPool = new Map();
@@ -91,7 +91,7 @@ async function initializeRCON(host, port, password) {
 
 async function executeRCONCommand(command, retries = MAX_RETRIES) {
   if (!mcrcon) {
-    throw new Error('mcrcon package not installed');
+    throw new Error('RCON support not available: optional dependency "mcrcon" not installed. Install it or disable RCON in configuration.');
   }
 
   const config = getRCONConfig();
@@ -212,26 +212,23 @@ async function watchLogFile(logFilePath, onLogLine, onError) {
       return true;
     }
 
-    if (logFilters.ignoreChat) {
-      if (line.includes('<') && line.includes('>')) {
+    const lowerLine = line.toLowerCase();
+
+    if (logFilters.ignoreChat && line.includes('<') && line.includes('>')) {
+      return true;
+    }
+
+    if (logFilters.ignoreJoinLeave) {
+      if (lowerLine.includes('joined the game') ||
+          lowerLine.includes('left the game') ||
+          lowerLine.includes('logged in') ||
+          lowerLine.includes('disconnected')) {
         return true;
       }
     }
 
-    const lowerLine = line.toLowerCase();
-    
-    if (logFilters.ignoreJoinLeave) {
-      if (lowerLine.includes('joined the game') || 
-          lowerLine.includes('left the game') ||
-          lowerLine.includes('logged in')) {
-        return false;
-      }
-    }
-
-    if (logFilters.ignoreCommands) {
-      if (lowerLine.startsWith('issued server command:')) {
-        return false;
-      }
+    if (logFilters.ignoreCommands && lowerLine.includes('issued server command')) {
+      return true;
     }
 
     return false;

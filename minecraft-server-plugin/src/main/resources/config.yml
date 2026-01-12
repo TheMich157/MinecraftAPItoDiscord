@@ -1,0 +1,4 @@
+# Default configuration for WhitelistHub plugin
+api-url: "http://localhost:3003"
+api-key: "change-me"
+mode: "online"

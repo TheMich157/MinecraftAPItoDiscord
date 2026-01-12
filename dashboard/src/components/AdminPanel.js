@@ -5,6 +5,13 @@ import './AdminPanel.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
+function escapeHtml(text) {
+  if (typeof text !== 'string') return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function AdminPanel({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('requests');
   const [requests, setRequests] = useState([]);

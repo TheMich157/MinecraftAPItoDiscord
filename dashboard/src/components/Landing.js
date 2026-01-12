@@ -1,10 +1,29 @@
 import React from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Shield, Bot, Server, Zap, Lock, BarChart3, Users, MessageSquare, Settings } from 'lucide-react';
 import './Landing.css';
 
 function Landing() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const cards = document.querySelectorAll('.feature-card');
+    if (!cards || cards.length === 0) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    cards.forEach(card => observer.observe(card));
+
+    return () => observer.disconnect();
+  }, []);
 
   const features = [
     {
@@ -115,8 +134,8 @@ function Landing() {
             </div>
           </div>
         </div>
-        <div className="hero-visual">
-          <div className="visual-card">
+          <div className="hero-visual">
+            <div className="visual-card animate-entrance" id="visualCard">
             <div className="visual-header">
               <div className="visual-dots">
                 <span></span>
@@ -155,7 +174,7 @@ function Landing() {
           </div>
           <div className="features-grid">
             {features.map((feature, index) => (
-              <div key={index} className="feature-card">
+              <div key={index} className="feature-card" data-index={index}>
                 <div className="feature-icon">{feature.icon}</div>
                 <h3 className="feature-title">{feature.title}</h3>
                 <p className="feature-description">{feature.description}</p>

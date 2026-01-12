@@ -16,6 +16,7 @@ function Dashboard({ user, onLogout }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minecraftUsername, setMinecraftUsername] = useState('');
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
     fetchRequests();
@@ -53,10 +54,23 @@ function Dashboard({ user, onLogout }) {
       });
       setMinecraftUsername('');
       fetchRequests();
-      alert('Whitelist request submitted successfully!');
+      setToast('Whitelist request submitted successfully!');
+      setTimeout(() => setToast(''), 3000);
     } catch (error) {
       console.error('Error submitting request:', error);
-      alert('Failed to submit request. Please try again.');
+      setToast('Failed to submit request. Please try again.');
+      setTimeout(() => setToast(''), 3000);
+    }
+  };
+
+  const copyApiUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(API_URL);
+      setToast('API URL copied to clipboard');
+      setTimeout(() => setToast(''), 2500);
+    } catch (err) {
+      setToast('Failed to copy');
+      setTimeout(() => setToast(''), 2500);
     }
   };
 
@@ -92,6 +106,9 @@ function Dashboard({ user, onLogout }) {
               Submit Request
             </button>
           </form>
+            <div style={{ marginTop: 12 }}>
+              <button onClick={copyApiUrl} className="btn btn-secondary">Copy API URL</button>
+            </div>
         </div>
 
         <div className="card">
@@ -132,6 +149,9 @@ function Dashboard({ user, onLogout }) {
           )}
         </div>
       </div>
+      {toast && (
+        <div className="toast-notification">{toast}</div>
+      )}
     </div>
   );
 }

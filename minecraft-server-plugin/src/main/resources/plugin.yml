@@ -1,0 +1,6 @@
+name: WhitelistHub
+main: com.whitelisthub.plugin.WhitelistPlugin
+version: "1.0.0"
+api-version: "1.21"
+author: WhitelistHub
+description: "Generates config and integrates with the server whitelist for external services"

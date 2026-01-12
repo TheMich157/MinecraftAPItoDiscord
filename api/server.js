@@ -468,21 +468,34 @@ app.post('/api/server', rateLimit, requireAdmin, async (req, res) => {
 
 app.post('/api/auth/developer', rateLimit, async (req, res) => {
   try {
-    const { key } = req.body;
-    
+    const { key, discordId } = req.body;
+
     if (!key || typeof key !== 'string' || key.length > 200) {
       return res.status(400).json({ success: false, error: 'Invalid key format' });
     }
-    
-    if (key === envConfig.developerKey) {
-      res.json({ 
-        success: true, 
-        discordId: 'dev',
-        username: 'Developer'
-      });
-    } else {
-      res.status(401).json({ success: false, error: 'Invalid developer key' });
+
+    // Developer key must match DEVELOPER_KEY from env/config
+    if (key !== envConfig.developerKey) {
+      return res.status(401).json({ success: false, error: 'Invalid developer key' });
     }
+
+    // Require discordId to be provided so key alone cannot be used to bypass admin list
+    if (!discordId || typeof discordId !== 'string') {
+      return res.status(400).json({ success: false, error: 'discordId is required for developer authentication' });
+    }
+
+    // Build admin list from env and file
+    const fileConfig = await readJSON('config.json') || {};
+    const envAdminIds = envConfig.access.adminDiscordIds || [];
+    const fileAdminIds = fileConfig.adminDiscordIds || [];
+    const adminIds = new Set([...(envAdminIds || []), ...(fileAdminIds || [])]);
+
+    if (adminIds.size > 0 && !adminIds.has(discordId)) {
+      return res.status(403).json({ success: false, error: 'Developer key valid but Discord ID is not listed as admin' });
+    }
+
+    // Success: return the discordId and a friendly username
+    res.json({ success: true, discordId, username: `Dev#${discordId.slice(-4)}` });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Authentication failed' });
   }
@@ -492,17 +505,32 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-ensureDataDir().then(() => {
-  if (validateConfig()) {
-    console.log('Configuration validated successfully');
-  }
-  
-  app.listen(PORT, () => {
-    console.log(`API server running on port ${PORT}`);
-    console.log(`Environment: ${envConfig.nodeEnv}`);
-    if (envConfig.nodeEnv === 'development') {
-      console.log(`Dashboard URL: ${DASHBOARD_URL}`);
-      console.log(`Discord OAuth: ${DISCORD_CLIENT_ID ? 'Configured' : 'Not configured'}`);
+async function startServer(portOverride) {
+  try {
+    await ensureDataDir();
+    if (validateConfig()) {
+      console.log('Configuration validated successfully');
     }
-  });
-});
+
+    const listenPort = portOverride || PORT;
+    const server = app.listen(listenPort, () => {
+      console.log(`API server running on port ${listenPort}`);
+      console.log(`Environment: ${envConfig.nodeEnv}`);
+      if (envConfig.nodeEnv === 'development') {
+        console.log(`Dashboard URL: ${DASHBOARD_URL}`);
+        console.log(`Discord OAuth: ${DISCORD_CLIENT_ID ? 'Configured' : 'Not configured'}`);
+      }
+    });
+
+    return server;
+  } catch (err) {
+    console.error('Failed to start API server:', err);
+    throw err;
+  }
+}
+
+if (require.main === module) {
+  startServer();
+} else {
+  module.exports = { app, startServer };
+}

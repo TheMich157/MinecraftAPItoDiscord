@@ -9,6 +9,7 @@
     "dev:dashboard": "cd dashboard && react-scripts start",
     "dev:bot": "cd bot && nodemon index.js",
     "start": "cd api && node server.js",
+    "start:render": "node render-server.js",
     "start:api": "cd api && node server.js",
     "start:bot": "cd bot && node index.js",
     "build": "cd dashboard && react-scripts build",
