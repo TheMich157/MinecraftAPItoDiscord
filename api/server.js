@@ -75,6 +75,10 @@ app.post('/api/registrations', rateLimit, async (req, res) => {
     if (!Array.isArray(cfg.adminDiscordIds) || cfg.adminDiscordIds.length === 0) {
       return res.status(403).json({ error: 'No platform admins configured' });
     }
+
+    if (cfg.registrationEnabled === false) {
+      return res.status(403).json({ error: 'Registrations are currently disabled' });
+    }
     if (cfg.servers && cfg.servers[safeServerId]) {
       return res.status(409).json({ error: 'Server already exists' });
     }
@@ -347,6 +351,7 @@ app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
     minecraftApiKey: config.minecraftApiKey || '',
     minecraftServers: config.minecraftServers || {},
     servers: config.servers || {},
+    registrationEnabled: config.registrationEnabled !== false,
     notificationChannelId: config.notificationChannelId || '',
     adminDiscordIds: allAdminIds,
     clientDiscordIds: allClientIds,
@@ -375,6 +380,7 @@ app.post('/api/auth/manual', rateLimit, async (req, res) => {
 
     const isAdmin = adminIds.includes(discordId);
     const servers = getUserServerRoles(fileConfig, discordId);
+    const registrationEnabled = fileConfig.registrationEnabled !== false;
 
     res.json({
       success: true,
@@ -386,12 +392,42 @@ app.post('/api/auth/manual', rateLimit, async (req, res) => {
       roles: {
         isAdmin,
         servers,
-        canRegister: !isAdmin && servers.length === 0
+        canRegister: registrationEnabled && !isAdmin && servers.length === 0
       }
     });
   } catch (error) {
     console.error('Manual auth error:', error);
     res.status(500).json({ success: false, error: 'Authentication failed' });
+  }
+});
+
+app.get('/api/auth/roles', rateLimit, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const token = authHeader.substring(7);
+    if (!validateDiscordId(token)) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const fileConfig = await readJSON('config.json') || {};
+    const adminIds = Array.isArray(fileConfig.adminDiscordIds) ? fileConfig.adminDiscordIds : [];
+    const isAdmin = adminIds.includes(token);
+    const servers = getUserServerRoles(fileConfig, token);
+    const registrationEnabled = fileConfig.registrationEnabled !== false;
+
+    res.json({
+      roles: {
+        isAdmin,
+        servers,
+        canRegister: registrationEnabled && !isAdmin && servers.length === 0
+      }
+    });
+  } catch (error) {
+    console.error('Error refreshing roles:', error);
+    res.status(500).json({ error: 'Failed to refresh roles' });
   }
 });
 
@@ -412,7 +448,7 @@ app.get('/api/config/public', async (req, res) => {
 
 app.post('/api/config', rateLimit, requireAdmin, async (req, res) => {
   try {
-    const { botToken, minecraftApiKey, minecraftServers, servers, notificationChannelId, allowedDiscordIds, adminDiscordIds, clientDiscordIds, minecraftServerId, minecraftServerDomain, minecraftWhitelistFile, clientId } = req.body;
+    const { botToken, minecraftApiKey, minecraftServers, servers, registrationEnabled, notificationChannelId, allowedDiscordIds, adminDiscordIds, clientDiscordIds, minecraftServerId, minecraftServerDomain, minecraftWhitelistFile, clientId } = req.body;
     
     const currentConfig = await readJSON('config.json') || {};
     
@@ -515,6 +551,7 @@ app.post('/api/config', rateLimit, requireAdmin, async (req, res) => {
       minecraftApiKey: minecraftApiKey !== undefined ? sanitizeString(minecraftApiKey, 200) : currentConfig.minecraftApiKey,
       minecraftServers: sanitizedMinecraftServers,
       servers: sanitizedServers,
+      registrationEnabled: registrationEnabled === undefined ? (currentConfig.registrationEnabled !== false) : !!registrationEnabled,
       notificationChannelId: notificationChannelId !== undefined ? notificationChannelId.trim() : currentConfig.notificationChannelId,
       allowedDiscordIds: allowedDiscordIds !== undefined ? allowedDiscordIds.filter(id => validateDiscordId(id)) : (currentConfig.allowedDiscordIds || []),
       adminDiscordIds: adminDiscordIds !== undefined ? adminDiscordIds.filter(id => validateDiscordId(id)) : (currentConfig.adminDiscordIds || []),
@@ -597,7 +634,10 @@ app.post('/api/auth/discord/callback', async (req, res) => {
     const servers = getUserServerRoles(fileConfig, discordId);
     const isServerUser = servers.length > 0;
 
-    if (!isAdmin && !isServerUser) {
+    const registrationEnabled = fileConfig.registrationEnabled !== false;
+    const canRegister = registrationEnabled && !isAdmin && servers.length === 0;
+
+    if (!isAdmin && !isServerUser && !canRegister) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
     
@@ -611,7 +651,8 @@ app.post('/api/auth/discord/callback', async (req, res) => {
       },
       roles: {
         isAdmin,
-        servers
+        servers,
+        canRegister
       }
     });
   } catch (error) {
@@ -695,8 +736,44 @@ app.get('/api/servers/:serverId', rateLimit, requireServerMember(['owner', 'dev'
     whitelistEnabled: !!serverCfg.whitelistEnabled,
     members: safeMembers,
     clientDiscordIds,
-    connected: wsHub.listServers().some(s => s.serverId === serverId)
+    connected: wsHub.listServers().some(s => s.serverId === serverId),
+    onboardingCompleted: !!serverCfg.onboardingCompleted
   });
+});
+
+app.post('/api/servers/:serverId/onboarding/complete', rateLimit, requireServerMember(['owner', 'dev', 'viewer']), requireServerRole(['owner', 'dev']), async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    const connected = wsHub.listServers().some(s => s.serverId === serverId);
+    if (!connected) {
+      return res.status(409).json({ error: 'Minecraft server not connected' });
+    }
+
+    const cfg = await readJSON('config.json') || {};
+    const serverCfg = getServer(cfg, serverId);
+    if (!serverCfg) return res.status(404).json({ error: 'Server not found' });
+
+    serverCfg.onboardingCompleted = true;
+    cfg.servers = getServersConfig(cfg);
+    cfg.servers[serverId] = serverCfg;
+    await writeJSON('config.json', cfg);
+
+    res.json({ success: true, serverId, onboardingCompleted: true });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+});
+
+app.get('/api/servers/:serverId/state', rateLimit, requireServerMember(['owner', 'dev', 'viewer']), (req, res) => {
+  const { serverId } = req.params;
+  res.json({ serverId, state: wsHub.getServerState(serverId) });
+});
+
+app.get('/api/servers/:serverId/events', rateLimit, requireServerMember(['owner', 'dev', 'viewer']), (req, res) => {
+  const { serverId } = req.params;
+  const limit = parseInt(req.query.limit || '100', 10);
+  res.json({ serverId, events: wsHub.getServerEvents(serverId, limit) });
 });
 
 app.get('/api/servers/:serverId/members', rateLimit, requireServerMember(['owner', 'dev', 'viewer']), requireServerRole(['owner', 'dev']), async (req, res) => {

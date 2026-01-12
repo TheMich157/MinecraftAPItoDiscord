@@ -1,5 +1,4 @@
-import React from 'react';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Shield, Bot, Server, Zap, Lock, BarChart3, Users, MessageSquare, Settings } from 'lucide-react';
 import './Landing.css';
@@ -87,6 +86,7 @@ function Landing() {
           </div>
           <div className="nav-links">
             <a href="#features" className="nav-link">Features</a>
+            <a href="#docs" className="nav-link">Documentation</a>
             <a href="#contact" className="nav-link">Contact</a>
             <button onClick={handleGetStarted} className="nav-button">
               <LogIn size={18} />
@@ -218,6 +218,133 @@ function Landing() {
         </div>
       </section>
 
+      <section id="docs" className="docs-section">
+        <div className="docs-container">
+          <div className="section-header">
+            <h2 className="section-title">Documentation</h2>
+            <p className="section-description">
+              Everything you need to set up servers, manage access, and run the plugin + bot.
+            </p>
+          </div>
+
+          <div className="docs-grid">
+            <div className="docs-card">
+              <h3 className="docs-title">Roles & Access</h3>
+              <p className="docs-text">
+                WhitelistHub separates Platform Admins (developers) from Server Owners/Staff. Access is per-server.
+              </p>
+              <div className="docs-list">
+                <div className="docs-item">
+                  <div className="docs-item-title">Platform Admin</div>
+                  <div className="docs-item-text">Manages global config, approves registrations, and can manage any server.</div>
+                </div>
+                <div className="docs-item">
+                  <div className="docs-item-title">Server Owner</div>
+                  <div className="docs-item-text">Full control over one server: requests, members, clients allowlist, settings.</div>
+                </div>
+                <div className="docs-item">
+                  <div className="docs-item-title">Server Dev / Viewer</div>
+                  <div className="docs-item-text">Dev can manage clients/settings; Viewer is read-only for server data.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="docs-card">
+              <h3 className="docs-title">Server Owner Registration (3 steps)</h3>
+              <div className="docs-steps">
+                <div className="docs-step">
+                  <div className="docs-step-badge">1</div>
+                  <div>
+                    <div className="docs-step-title">Submit registration</div>
+                    <div className="docs-step-text">Go to Dashboard and submit: server id, name, ip, port, online-mode.</div>
+                  </div>
+                </div>
+                <div className="docs-step">
+                  <div className="docs-step-badge">2</div>
+                  <div>
+                    <div className="docs-step-title">Get approved + download config</div>
+                    <div className="docs-step-text">After approval, download the pre-filled plugin config from the dashboard.</div>
+                  </div>
+                </div>
+                <div className="docs-step">
+                  <div className="docs-step-badge">3</div>
+                  <div>
+                    <div className="docs-step-title">Install plugin + finish setup</div>
+                    <div className="docs-step-text">Start the server so the plugin connects. Then click “Finish setup” to unlock the owner panel.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="docs-card">
+              <h3 className="docs-title">Plugin Setup</h3>
+              <p className="docs-text">
+                The Minecraft plugin connects to the WebSocket hub using the serverId + apiKey generated for your server.
+              </p>
+              <div className="docs-item">
+                <div className="docs-item-title">1) Download config</div>
+                <div className="docs-item-text">Dashboard → approved server → “Download plugin config”.</div>
+              </div>
+              <div className="docs-item">
+                <div className="docs-item-title">2) Place files</div>
+                <div className="docs-item-text">Put plugin jar into <span className="docs-code">plugins/</span> and put config into the plugin folder.</div>
+              </div>
+              <div className="docs-item">
+                <div className="docs-item-title">3) Start server</div>
+                <div className="docs-item-text">Once connected, the dashboard will show the server as Connected and events/state will appear.</div>
+              </div>
+            </div>
+
+            <div className="docs-card">
+              <h3 className="docs-title">Discord Bot Commands</h3>
+              <p className="docs-text">
+                The bot submits whitelist requests per-server and respects the per-server client allowlist + whitelistEnabled toggle.
+              </p>
+              <div className="docs-list">
+                <div className="docs-item">
+                  <div className="docs-item-title">Whitelist request</div>
+                  <div className="docs-item-text">Users submit a Minecraft username; server staff approve in the dashboard.</div>
+                </div>
+                <div className="docs-item">
+                  <div className="docs-item-title">Admin/staff actions</div>
+                  <div className="docs-item-text">Staff can approve/reject; approvals trigger a whitelist add via the server connection.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="docs-card docs-wide">
+              <h3 className="docs-title">Troubleshooting</h3>
+              <div className="docs-faq">
+                <details className="docs-details">
+                  <summary className="docs-summary">I’m approved but I don’t see the Owner Panel</summary>
+                  <div className="docs-details-body">
+                    Use “Refresh access” in Dashboard. If the server is not connected yet, install the plugin and start the Minecraft server, then click “Finish setup”.
+                  </div>
+                </details>
+                <details className="docs-details">
+                  <summary className="docs-summary">Server shows Offline / not connected</summary>
+                  <div className="docs-details-body">
+                    Check the plugin config: serverId and apiKey must match. Then verify the API URL/WebSocket URL is reachable from the server.
+                  </div>
+                </details>
+                <details className="docs-details">
+                  <summary className="docs-summary">Whitelist approvals do nothing</summary>
+                  <div className="docs-details-body">
+                    Ensure whitelist is enabled in Settings for that server, and the server is connected so whitelist commands can be delivered.
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <div className="docs-cta">
+            <button onClick={handleGetStarted} className="nav-button">
+              <LogIn size={18} /> Open Dashboard
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section id="contact" className="contact-section">
         <div className="contact-container">
           <div className="section-header">
@@ -279,7 +406,7 @@ function Landing() {
           <div className="footer-links">
             <a href="#features">Features</a>
             <a href="#contact">Contact</a>
-            <a href="/documentation">Documentation</a>
+            <a href="#docs">Documentation</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
           </div>

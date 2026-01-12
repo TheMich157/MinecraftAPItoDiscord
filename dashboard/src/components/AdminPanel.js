@@ -21,6 +21,7 @@ function AdminPanel({ user, onLogout }) {
     minecraftApiKey: '',
     minecraftServers: {},
     servers: {},
+    registrationEnabled: true,
     notificationChannelId: '',
     adminDiscordIds: '',
     clientDiscordIds: '',
@@ -57,6 +58,7 @@ function AdminPanel({ user, onLogout }) {
         minecraftApiKey: configData.minecraftApiKey || '',
         minecraftServers: configData.minecraftServers || {},
         servers: configData.servers || {},
+        registrationEnabled: configData.registrationEnabled !== false,
         notificationChannelId: configData.notificationChannelId || '',
         adminDiscordIds: (configData.adminDiscordIds || []).join('\n'),
         clientDiscordIds: (configData.clientDiscordIds || []).join('\n'),
@@ -456,6 +458,17 @@ function AdminPanel({ user, onLogout }) {
           <div className="card">
             <h2>Configuration</h2>
             <form onSubmit={handleConfigSave}>
+              <div className="input-group">
+                <label>Server Registrations</label>
+                <select
+                  value={config.registrationEnabled ? 'enabled' : 'disabled'}
+                  onChange={(e) => setConfig({ ...config, registrationEnabled: e.target.value === 'enabled' })}
+                >
+                  <option value="enabled">Enabled</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+                <small>When disabled, server owners cannot submit new registration requests.</small>
+              </div>
               <div className="input-group">
                 <label>Discord Bot Token</label>
                 <input

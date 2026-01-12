@@ -424,6 +424,158 @@
   line-height: 1.6;
 }
 
+.docs-section {
+  background: white;
+  padding: 100px 24px;
+}
+
+.docs-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 28px;
+}
+
+.docs-card {
+  background: #f9fafb;
+  border-radius: 16px;
+  border: 2px solid rgba(102, 126, 234, 0.08);
+  padding: 28px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.docs-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(102, 126, 234, 0.35);
+  box-shadow: 0 14px 26px rgba(102, 126, 234, 0.14);
+}
+
+.docs-card.docs-wide {
+  grid-column: 1 / -1;
+}
+
+.docs-title {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111;
+}
+
+.docs-text {
+  margin: 0 0 14px;
+  color: #555;
+  line-height: 1.7;
+}
+
+.docs-list {
+  display: grid;
+  gap: 12px;
+}
+
+.docs-item {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.docs-item-title {
+  font-weight: 800;
+  color: #111;
+  margin-bottom: 6px;
+}
+
+.docs-item-text {
+  color: #666;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.docs-code {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.92);
+  color: #e5e7eb;
+}
+
+.docs-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.docs-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.docs-step-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.docs-step-title {
+  font-weight: 800;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.docs-step-text {
+  color: #666;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.docs-faq {
+  display: grid;
+  gap: 12px;
+}
+
+.docs-details {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 8px 12px;
+}
+
+.docs-summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: #111;
+  padding: 10px 4px;
+}
+
+.docs-details-body {
+  padding: 10px 4px 14px;
+  color: #666;
+  line-height: 1.7;
+}
+
+.docs-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: 26px;
+}
+
 .contact-section {
   background: white;
   padding: 100px 24px;
