@@ -6,12 +6,12 @@ const axios = require('axios');
 const { encrypt, decrypt } = require('./crypto-utils');
 const { config: envConfig, validateConfig } = require('./config');
 const { sanitizeString, validateDiscordId, validateMinecraftUsername, validateUrl, requireAdmin, rateLimit } = require('./middleware');
+const wsHub = require('../ws-hub');
 
 let sendBotNotification = null;
 try {
   ({ sendNotification: sendBotNotification } = require('../bot/index.js'));
 } catch (error) {
-  // Bot module not available in this runtime (or not installed). Notifications will be skipped.
 }
 
 const app = express();
@@ -80,15 +80,9 @@ async function verifyAPIKey(req, res, next) {
 
 app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
   const config = await readJSON('config.json') || {};
-  
-  const envAdminIds = envConfig.access.adminDiscordIds || [];
-  const envClientIds = envConfig.access.clientDiscordIds || [];
-  
-  const fileAdminIds = config.adminDiscordIds || [];
-  const fileClientIds = config.clientDiscordIds || config.allowedDiscordIds || [];
-  
-  const allAdminIds = [...new Set([...envAdminIds, ...fileAdminIds])];
-  const allClientIds = envClientIds.length > 0 ? envClientIds : fileClientIds;
+
+  const allAdminIds = Array.isArray(config.adminDiscordIds) ? config.adminDiscordIds : [];
+  const allClientIds = Array.isArray(config.clientDiscordIds) ? config.clientDiscordIds : [];
   
   let decryptedToken = '';
   if (config.botToken) {
@@ -106,14 +100,52 @@ app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
     allowedDiscordIds: config.allowedDiscordIds || [],
     adminDiscordIds: allAdminIds,
     clientDiscordIds: allClientIds,
-    envAdminDiscordIds: envAdminIds,
-    envClientDiscordIds: envClientIds,
     minecraftServerDomain: config.minecraftServerDomain || '',
     minecraftWhitelistFile: config.minecraftWhitelistFile || '',
     clientId: config.clientId || '',
     discordClientId: DISCORD_CLIENT_ID,
     discordRedirectUri: DISCORD_REDIRECT_URI
   });
+});
+
+app.post('/api/auth/manual', rateLimit, async (req, res) => {
+  try {
+    const { discordId } = req.body;
+    if (!discordId || typeof discordId !== 'string' || !validateDiscordId(discordId)) {
+      return res.status(400).json({ success: false, error: 'Invalid Discord ID format' });
+    }
+
+    const fileConfig = await readJSON('config.json') || {};
+    const adminIds = Array.isArray(fileConfig.adminDiscordIds) ? fileConfig.adminDiscordIds : [];
+    const clientIds = Array.isArray(fileConfig.clientDiscordIds) ? fileConfig.clientDiscordIds : [];
+
+    if (adminIds.length === 0) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const isAdmin = adminIds.includes(discordId);
+    const isClient = clientIds.includes(discordId);
+
+    if (!isAdmin && !isClient) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        discordId,
+        username: `User#${discordId.slice(-4)}`,
+        avatar: null
+      },
+      roles: {
+        isAdmin,
+        isClient
+      }
+    });
+  } catch (error) {
+    console.error('Manual auth error:', error);
+    res.status(500).json({ success: false, error: 'Authentication failed' });
+  }
 });
 
 // Public config for unauthenticated clients (e.g., login page) - does NOT expose secrets
@@ -248,18 +280,20 @@ app.post('/api/auth/discord/callback', async (req, res) => {
     const avatar = userData.avatar ? `https://cdn.discordapp.com/avatars/${discordId}/${userData.avatar}.png` : null;
     
     const fileConfig = await readJSON('config.json') || {};
-    
-    const envAdminIds = envConfig.access.adminDiscordIds || [];
-    const envClientIds = envConfig.access.clientDiscordIds || [];
-    
-    const fileAdminIds = fileConfig.adminDiscordIds || [];
-    const fileClientIds = fileConfig.clientDiscordIds || fileConfig.allowedDiscordIds || [];
-    
-    const adminIds = [...new Set([...envAdminIds, ...fileAdminIds])];
-    const clientIds = envClientIds.length > 0 ? envClientIds : fileClientIds;
-    
-    const isAdmin = adminIds.length > 0 && adminIds.includes(discordId);
-    const isClient = clientIds.length === 0 || clientIds.includes(discordId);
+
+    const adminIds = Array.isArray(fileConfig.adminDiscordIds) ? fileConfig.adminDiscordIds : [];
+    const clientIds = Array.isArray(fileConfig.clientDiscordIds) ? fileConfig.clientDiscordIds : [];
+
+    if (adminIds.length === 0) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const isAdmin = adminIds.includes(discordId);
+    const isClient = clientIds.includes(discordId);
+
+    if (!isAdmin && !isClient) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
     
     res.json({
       success: true,
@@ -381,31 +415,14 @@ app.put('/api/requests/:id', rateLimit, requireAdmin, async (req, res) => {
     
     if (status === 'approved') {
       const finalUsername = minecraftUsername || requests[requestIndex].minecraftUsername;
-      const config = await readJSON('config.json');
-      
-      if (config && config.minecraftServerDomain && finalUsername) {
-        if (!validateUrl(config.minecraftServerDomain)) {
-          console.error('Invalid Minecraft server domain URL');
-        } else {
-          try {
-            const url = new URL(config.minecraftServerDomain);
-            if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.') || url.hostname.startsWith('10.') || url.hostname.startsWith('172.')) {
-              const response = await axios.post(`${config.minecraftServerDomain}/api/whitelist/add`, {
-                username: finalUsername
-              }, {
-                headers: {
-                  'X-API-Key': config.minecraftApiKey
-                },
-                timeout: 10000,
-                maxRedirects: 0
-              });
-              console.log(`Successfully added ${finalUsername} to Minecraft whitelist`);
-            } else {
-              console.warn('Minecraft server domain must be localhost or private IP for security');
-            }
-          } catch (error) {
-            console.error('Error notifying Minecraft server:', error.response?.data || error.message);
+      if (finalUsername) {
+        try {
+          const ok = wsHub.whitelistAdd(finalUsername);
+          if (!ok) {
+            console.warn('No Minecraft server connected via WebSocket; cannot whitelist user yet');
           }
+        } catch (err) {
+          console.error('Failed to send whitelist add to Minecraft server:', err.message || err);
         }
       }
       
@@ -491,46 +508,6 @@ app.post('/api/server', rateLimit, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error updating server IP:', error);
     res.status(500).json({ error: 'Failed to update server IP' });
-  }
-});
-
-app.post('/api/auth/developer', rateLimit, async (req, res) => {
-  try {
-    const { key, discordId } = req.body;
-
-    if (!key || typeof key !== 'string' || key.length > 200) {
-      return res.status(400).json({ success: false, error: 'Invalid key format' });
-    }
-
-    // Developer key must match DEVELOPER_KEY from env/config
-    if (key !== envConfig.developerKey) {
-      console.warn(`[AUTH] Developer auth failed: invalid key from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
-      return res.status(401).json({ success: false, error: 'Invalid developer key' });
-    }
-
-    // Require discordId to be provided so key alone cannot be used to bypass admin list
-    if (!discordId || typeof discordId !== 'string') {
-      console.warn(`[AUTH] Developer auth failed: missing discordId from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
-      return res.status(400).json({ success: false, error: 'discordId is required for developer authentication' });
-    }
-
-    // Build admin list from env and file
-    const fileConfig = await readJSON('config.json') || {};
-    const envAdminIds = envConfig.access.adminDiscordIds || [];
-    const fileAdminIds = fileConfig.adminDiscordIds || [];
-    const adminIds = new Set([...(envAdminIds || []), ...(fileAdminIds || [])]);
-
-    if (adminIds.size > 0 && !adminIds.has(discordId)) {
-      console.warn(`[AUTH] Developer auth failed: discordId ${discordId} not in admin list (request from ${req.ip || req.connection?.remoteAddress || 'unknown'})`);
-      return res.status(403).json({ success: false, error: 'Developer key valid but Discord ID is not listed as admin' });
-    }
-
-    // Success: return the discordId and a friendly username
-    console.log(`[AUTH] Developer auth success for discordId ${discordId} from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
-    res.json({ success: true, discordId, username: `Dev#${discordId.slice(-4)}` });
-  } catch (error) {
-    console.error('[AUTH] Developer auth error:', error);
-    res.status(500).json({ success: false, error: 'Authentication failed' });
   }
 });
 

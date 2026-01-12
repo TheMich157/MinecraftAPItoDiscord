@@ -42,9 +42,7 @@ async function isAdmin(discordId, useCache = true) {
   }
   
   const config = await readConfig(false);
-  const envAdminIds = envConfig.access?.adminDiscordIds || [];
-  const fileAdminIds = config?.adminDiscordIds || [];
-  const adminIds = [...new Set([...envAdminIds, ...fileAdminIds])];
+  const adminIds = Array.isArray(config?.adminDiscordIds) ? config.adminDiscordIds : [];
   const result = adminIds.length > 0 && adminIds.includes(discordId);
   
   if (useCache) {
@@ -793,11 +791,14 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply({ embeds: [errorEmbed] });
       }
 
-      const envClientIds = envConfig.access?.clientDiscordIds || [];
-      const fileClientIds = config.clientDiscordIds || config.allowedDiscordIds || [];
-      const clientIds = envClientIds.length > 0 ? envClientIds : fileClientIds;
-      
-      if (clientIds.length > 0 && !clientIds.includes(userId)) {
+      const clientIds = Array.isArray(config.clientDiscordIds) ? config.clientDiscordIds : [];
+
+      if (clientIds.length === 0) {
+        const errorEmbed = createErrorEmbed('Authorization Error', 'Access denied. No client users configured.');
+        return interaction.editReply({ embeds: [errorEmbed] });
+      }
+
+      if (!clientIds.includes(userId)) {
         const errorEmbed = createErrorEmbed('Authorization Error', 'You are not authorized to request whitelist access.');
         return interaction.editReply({ embeds: [errorEmbed] });
       }

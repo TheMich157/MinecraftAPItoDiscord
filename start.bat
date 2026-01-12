@@ -46,9 +46,8 @@ echo.
 echo Starting all services...
 echo.
 echo Services will start on:
-echo   - API Server:     http://localhost:3001
-echo   - Dashboard:      http://localhost:3000
-echo   - Discord Bot:    Running in background
+echo   - Unified Server: http://localhost:3000
+echo   - Discord Bot:    Runs inside the unified server process
 echo.
 echo Press Ctrl+C to stop all services
 echo.

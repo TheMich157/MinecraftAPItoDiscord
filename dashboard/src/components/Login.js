@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Login.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL || '';
 
 function Login({ onLogin }) {
   const navigate = useNavigate();
-  const [mode, setMode] = useState('client'); // 'client' or 'developer'
   const [discordId, setDiscordId] = useState('');
-  const [developerKey, setDeveloperKey] = useState('');
   const [error, setError] = useState('');
   const [discordOAuthEnabled, setDiscordOAuthEnabled] = useState(false);
   const [discordClientId, setDiscordClientId] = useState('');
@@ -32,7 +30,7 @@ function Login({ onLogin }) {
       });
   }, []);
 
-  const handleClientLogin = async (e) => {
+  const handleManualLogin = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -42,84 +40,30 @@ function Login({ onLogin }) {
     }
 
     try {
-      const config = await axios.get(`${API_URL}/api/config`);
-      const allowedIds = config.data.allowedDiscordIds || [];
-      // If OAuth is enabled, prefer OAuth but allow manual Discord ID only if explicitly allowed
       if (discordOAuthEnabled) {
-        if (!allowedIds || allowedIds.length === 0) {
-          setWarning('Discord OAuth is enabled; manual Discord ID login is discouraged. Use the "Login with Discord" button when possible.');
-        }
-        if (allowedIds.length > 0 && !allowedIds.includes(discordId)) {
-          setError('Your Discord ID is not authorized to access this dashboard');
-          return;
-        }
-      } else {
-        if (allowedIds.length > 0 && !allowedIds.includes(discordId)) {
-          setError('Your Discord ID is not authorized to access this dashboard');
-          return;
-        }
+        setWarning('Discord OAuth is enabled; manual Discord ID login is discouraged. Use the "Login with Discord" button when possible.');
       }
 
-      const userData = { discordId, username: `User#${discordId.slice(-4)}` };
-      localStorage.setItem('authToken', discordId);
-      onLogin(userData, false, true, discordId);
-    } catch (error) {
-      setError('Failed to verify Discord ID. Please try again.');
-      console.error(error);
-    }
-  };
-
-  const handleDeveloperLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!developerKey) {
-      setError('Please enter the developer key');
-      return;
-    }
-
-    // Developer login requires a Discord ID to be provided as a backup identity when OAuth is not available
-    if (!discordId) {
-      setError('Please enter your Discord ID (required for developer access)');
-      return;
-    }
-
-    try {
-      const cfg = await axios.get(`${API_URL}/api/config`);
-      const adminIds = new Set([...(cfg.data.adminDiscordIds || []), ...(cfg.data.envAdminDiscordIds || [])]);
-
-      // If OAuth is enabled, prefer OAuth flow instead of trusting manual Discord ID
-      if (discordOAuthEnabled) {
-        if (!adminIds.has(discordId)) {
-          setError('Developer access requires a Discord account listed as a developer. Please login with Discord OAuth.');
-          return;
-        }
-      }
-
-      // Call backend to validate developer key. Backend may return discordId.
-      const response = await axios.post(`${API_URL}/api/auth/developer`, {
-        key: developerKey,
-        discordId
-      });
-
+      const response = await axios.post(`${API_URL}/api/auth/manual`, { discordId });
       if (response.data && response.data.success) {
-        const returnedId = response.data.discordId || discordId;
-
-        // enforce admin membership: even if key is valid, user must be in admin list
-        if (adminIds.size > 0 && !adminIds.has(returnedId)) {
-          setError('Developer key valid but your Discord account is not listed as a developer. Access denied.');
-          return;
+        const { user: userData, roles } = response.data;
+        const authToken = userData.discordId;
+        localStorage.setItem('authToken', authToken);
+        onLogin(userData, roles.isAdmin, roles.isClient, authToken);
+        if (roles.isAdmin && roles.isClient) {
+          window.location.href = '/';
+        } else if (roles.isAdmin) {
+          window.location.href = '/admin';
+        } else if (roles.isClient) {
+          window.location.href = '/dashboard';
+        } else {
+          setError('Access denied');
         }
-
-        const userData = { discordId: returnedId, username: response.data.username || `Dev#${returnedId.slice(-4)}` };
-        localStorage.setItem('authToken', userData.discordId);
-        onLogin(userData, true, false, userData.discordId);
       } else {
-        setError(response.data?.error || 'Invalid developer key');
+        setError(response.data?.error || 'Access denied');
       }
     } catch (err) {
-      console.error('Developer login error:', err);
-      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Developer login failed';
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Access denied';
       setError(msg);
     }
   };
@@ -168,59 +112,18 @@ function Login({ onLogin }) {
           </div>
         )}
 
-        <div className="login-tabs">
-          <button
-            className={`tab ${mode === 'client' ? 'active' : ''}`}
-            onClick={() => setMode('client')}
-          >
-            Client Login
-          </button>
-          <button
-            className={`tab ${mode === 'developer' ? 'active' : ''}`}
-            onClick={() => setMode('developer')}
-          >
-            Developer Access
-          </button>
-        </div>
-
-        <form onSubmit={mode === 'client' ? handleClientLogin : handleDeveloperLogin}>
-          {mode === 'client' ? (
-            <div className="input-group">
-              <label>Discord ID</label>
-              <input
-                type="text"
-                value={discordId}
-                onChange={(e) => setDiscordId(e.target.value)}
-                placeholder="Enter your Discord ID"
-                required
-              />
-              <small>Your Discord ID can be found in Discord settings under Advanced</small>
-            </div>
-          ) : (
-            <>
-              <div className="input-group">
-                <label>Discord ID</label>
-                <input
-                  type="text"
-                  value={discordId}
-                  onChange={(e) => setDiscordId(e.target.value)}
-                  placeholder="Enter your Discord ID (required for developer access)"
-                  required
-                />
-                <small>This helps verify your identity if OAuth isn't used.</small>
-              </div>
-              <div className="input-group">
-                <label>Developer Key</label>
-                <input
-                  type="password"
-                  value={developerKey}
-                  onChange={(e) => setDeveloperKey(e.target.value)}
-                  placeholder="Enter developer key"
-                  required
-                />
-              </div>
-            </>
-          )}
+        <form onSubmit={handleManualLogin}>
+          <div className="input-group">
+            <label>Discord ID</label>
+            <input
+              type="text"
+              value={discordId}
+              onChange={(e) => setDiscordId(e.target.value)}
+              placeholder="Enter your Discord ID"
+              required
+            />
+            <small>Your Discord ID can be found in Discord settings under Advanced</small>
+          </div>
 
           {error && <div className="error-message">{error}</div>}
           {warning && <div className="warning-message">{warning}</div>}

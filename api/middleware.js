@@ -1,4 +1,3 @@
-const { config: envConfig } = require('./config');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -54,10 +53,8 @@ async function requireAdmin(req, res, next) {
 
     const token = authHeader.substring(7);
     const config = await readJSON('config.json') || {};
-    
-    const envAdminIds = envConfig.access.adminDiscordIds || [];
-    const fileAdminIds = config.adminDiscordIds || [];
-    const adminIds = [...new Set([...envAdminIds, ...fileAdminIds])];
+
+    const adminIds = Array.isArray(config.adminDiscordIds) ? config.adminDiscordIds : [];
 
     if (adminIds.length === 0) {
       return res.status(403).json({ error: 'No admin users configured' });

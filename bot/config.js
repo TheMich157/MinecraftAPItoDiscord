@@ -1,6 +1,3 @@
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-
 const config = {
   apiUrl: process.env.API_URL || 'http://localhost:3001',
   botPort: parseInt(process.env.BOT_PORT || '3002', 10),

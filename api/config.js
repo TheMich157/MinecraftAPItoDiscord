@@ -1,6 +1,3 @@
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-
 const config = {
   port: parseInt(process.env.PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -22,17 +19,6 @@ const config = {
   cors: {
     origin: process.env.CORS_ORIGIN || '*'
   },
-  
-  access: {
-    adminDiscordIds: process.env.ADMIN_DISCORD_IDS 
-      ? process.env.ADMIN_DISCORD_IDS.split(',').map(id => id.trim()).filter(id => id.length > 0)
-      : [],
-    clientDiscordIds: process.env.CLIENT_DISCORD_IDS
-      ? process.env.CLIENT_DISCORD_IDS.split(',').map(id => id.trim()).filter(id => id.length > 0)
-      : []
-  },
-  
-  developerKey: process.env.DEVELOPER_KEY || 'dev2024',
   notifySecret: process.env.NOTIFY_SECRET || ''
 };
 

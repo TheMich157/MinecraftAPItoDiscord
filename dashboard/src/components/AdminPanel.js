@@ -3,7 +3,7 @@ import axios from 'axios';
 import { LogOut, RefreshCw, Settings, Users, CheckCircle, XCircle, Copy, Key } from 'lucide-react';
 import './AdminPanel.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL || '';
 
 function escapeHtml(text) {
   if (typeof text !== 'string') return '';
@@ -19,11 +19,8 @@ function AdminPanel({ user, onLogout }) {
     botToken: '',
     minecraftApiKey: '',
     notificationChannelId: '',
-    allowedDiscordIds: '',
     adminDiscordIds: '',
     clientDiscordIds: '',
-    envAdminDiscordIds: [],
-    envClientDiscordIds: [],
     minecraftServerDomain: '',
     minecraftWhitelistFile: '',
     clientId: ''
@@ -53,11 +50,8 @@ function AdminPanel({ user, onLogout }) {
         botToken: configData.botToken || '',
         minecraftApiKey: configData.minecraftApiKey || '',
         notificationChannelId: configData.notificationChannelId || '',
-        allowedDiscordIds: (configData.allowedDiscordIds || []).join('\n'),
         adminDiscordIds: (configData.adminDiscordIds || []).join('\n'),
-        clientDiscordIds: (configData.clientDiscordIds || configData.allowedDiscordIds || []).join('\n'),
-        envAdminDiscordIds: configData.envAdminDiscordIds || [],
-        envClientDiscordIds: configData.envClientDiscordIds || [],
+        clientDiscordIds: (configData.clientDiscordIds || []).join('\n'),
         minecraftServerDomain: configData.minecraftServerDomain || '',
         minecraftWhitelistFile: configData.minecraftWhitelistFile || '',
         clientId: configData.clientId || ''
@@ -76,11 +70,6 @@ function AdminPanel({ user, onLogout }) {
       const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
       
-      const allowedIds = config.allowedDiscordIds
-        .split('\n')
-        .map(id => id.trim())
-        .filter(id => id.length > 0);
-      
       const adminIds = config.adminDiscordIds
         .split('\n')
         .map(id => id.trim())
@@ -94,7 +83,6 @@ function AdminPanel({ user, onLogout }) {
       await Promise.all([
         axios.post(`${API_URL}/api/config`, {
           ...config,
-          allowedDiscordIds: allowedIds,
           adminDiscordIds: adminIds,
           clientDiscordIds: clientIds
         }, { headers }),
@@ -211,7 +199,7 @@ function AdminPanel({ user, onLogout }) {
         <div className="header-content">
           <h1>WhitelistHub Admin</h1>
           <div className="header-actions">
-            <span className="user-info">Developer: {user.username}</span>
+            <span className="user-info">Admin: {user.username}</span>
             <button onClick={onLogout} className="btn btn-secondary">
               <LogOut size={18} /> Logout
             </button>
@@ -418,25 +406,14 @@ function AdminPanel({ user, onLogout }) {
               </div>
 
               <div className="input-group">
-                <label>Admin/Developer Discord IDs</label>
-                {config.envAdminDiscordIds && config.envAdminDiscordIds.length > 0 && (
-                  <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#e8f4f8', borderRadius: '4px', border: '1px solid #bee5eb' }}>
-                    <strong>From Environment Variables:</strong>
-                    <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-                      {config.envAdminDiscordIds.map(id => (
-                        <li key={id}>{id}</li>
-                      ))}
-                    </ul>
-                    <small style={{ color: '#666' }}>These are set in ADMIN_DISCORD_IDS env variable and cannot be changed here</small>
-                  </div>
-                )}
+                <label>Admin Discord IDs</label>
                 <textarea
                   value={config.adminDiscordIds}
                   onChange={(e) => setConfig({ ...config, adminDiscordIds: e.target.value })}
-                  placeholder="Enter additional Discord IDs for admin/developer access, one per line"
+                  placeholder="Enter additional Discord IDs for admin access, one per line"
                   rows={5}
                 />
-                <small>Additional admin IDs (environment variable IDs are shown above). Users with these IDs can access the admin panel via Discord OAuth.</small>
+                <small>Users with these IDs can access the admin panel.</small>
               </div>
 
               <div className="input-group">
@@ -444,21 +421,10 @@ function AdminPanel({ user, onLogout }) {
                 <textarea
                   value={config.clientDiscordIds}
                   onChange={(e) => setConfig({ ...config, clientDiscordIds: e.target.value })}
-                  placeholder="Enter Discord IDs for client access, one per line. Leave empty to allow all users."
+                  placeholder="Enter Discord IDs for client access, one per line. Leave empty to deny all users."
                   rows={5}
                 />
-                <small>Users with these IDs can access the client dashboard via Discord OAuth. Leave empty to allow all users.</small>
-              </div>
-
-              <div className="input-group">
-                <label>Allowed Discord IDs (Legacy - one per line)</label>
-                <textarea
-                  value={config.allowedDiscordIds}
-                  onChange={(e) => setConfig({ ...config, allowedDiscordIds: e.target.value })}
-                  placeholder="Legacy field - use Client Discord IDs above"
-                  rows={3}
-                />
-                <small>Legacy field for backward compatibility. Prefer using Client Discord IDs above.</small>
+                <small>Users with these IDs can access the client dashboard.</small>
               </div>
 
               <div className="input-group">
@@ -505,19 +471,6 @@ function AdminPanel({ user, onLogout }) {
           <div className="card">
             <h2>Client Discord ID Management</h2>
             <p>Manage Discord IDs that can access the client dashboard.</p>
-            
-            {config.envClientDiscordIds && config.envClientDiscordIds.length > 0 && (
-              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e8f4f8', borderRadius: '4px', border: '1px solid #bee5eb' }}>
-                <h3 style={{ marginTop: 0 }}>Environment Variable Client IDs</h3>
-                <p style={{ margin: '5px 0', color: '#666' }}>These are set in CLIENT_DISCORD_IDS environment variable:</p>
-                <ul style={{ margin: '10px 0', paddingLeft: '20px' }}>
-                  {config.envClientDiscordIds.map(id => (
-                    <li key={id} style={{ margin: '5px 0' }}>{escapeHtml(id)}</li>
-                  ))}
-                </ul>
-                <small style={{ color: '#666' }}>These cannot be changed here. Edit CLIENT_DISCORD_IDS in your .env file.</small>
-              </div>
-            )}
 
             <div className="input-group">
               <label>Add New Client Discord ID</label>
@@ -544,14 +497,12 @@ function AdminPanel({ user, onLogout }) {
               <textarea
                 value={config.clientDiscordIds}
                 onChange={(e) => setConfig({ ...config, clientDiscordIds: e.target.value })}
-                placeholder="Enter Discord IDs for client access, one per line. Leave empty to allow all users."
+                placeholder="Enter Discord IDs for client access, one per line. Leave empty to deny all users."
                 rows={8}
               />
               <small>
                 These IDs are stored in config.json and can be managed here. 
-                {config.envClientDiscordIds && config.envClientDiscordIds.length > 0 
-                  ? ' Environment variable IDs take precedence.' 
-                  : ' Leave empty to allow all users.'}
+                Leave empty to deny all client access.
               </small>
             </div>
 

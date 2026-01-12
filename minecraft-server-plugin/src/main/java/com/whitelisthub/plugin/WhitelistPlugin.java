@@ -9,6 +9,8 @@ import java.util.logging.Level;
 
 public final class WhitelistPlugin extends JavaPlugin {
 
+    private WsBridge wsBridge;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -38,10 +40,23 @@ public final class WhitelistPlugin extends JavaPlugin {
         } catch (NoClassDefFoundError e) {
             getLogger().warning("Could not register listeners due to API mismatch: " + e.getMessage());
         }
+
+        String backendUrl = getConfig().getString("backend-url", "").trim();
+        String apiKey = getConfig().getString("api-key", "").trim();
+        String serverId = getConfig().getString("server-id", "default").trim();
+
+        if (!backendUrl.isEmpty() && !apiKey.isEmpty()) {
+            wsBridge = new WsBridge(this, backendUrl, apiKey, serverId);
+            wsBridge.start();
+        }
     }
 
     @Override
     public void onDisable() {
+        if (wsBridge != null) {
+            wsBridge.stop();
+            wsBridge = null;
+        }
         getLogger().info("WhitelistHub plugin disabled");
     }
 }

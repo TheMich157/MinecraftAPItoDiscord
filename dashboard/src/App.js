@@ -9,7 +9,7 @@ import RoleSelector from './components/RoleSelector';
 import DiscordCallback from './components/DiscordCallback';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL || '';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

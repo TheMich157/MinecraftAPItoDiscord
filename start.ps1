@@ -47,10 +47,9 @@ Write-Host ""
 Write-Host "Starting all services..." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Services will start on:" -ForegroundColor Cyan
-Write-Host "  - API Server:     http://localhost:3001" -ForegroundColor White
-Write-Host "  - Dashboard:      http://localhost:3000" -ForegroundColor White
-Write-Host "  - Discord Bot:    Running in background" -ForegroundColor White
-Write-Host ""
+Write-Host "  - Unified Server: http://localhost:3000" -ForegroundColor White
+Write-Host "  - Discord Bot:    Runs inside the unified server process" -ForegroundColor White
+Write-Host "" 
 Write-Host "Press Ctrl+C to stop all services" -ForegroundColor Yellow
 Write-Host ""
 

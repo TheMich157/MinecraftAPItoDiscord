@@ -1,37 +1,33 @@
 const express = require('express');
 const path = require('path');
 
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const http = require('http');
 const { WebSocketServer } = require('ws');
-const wsHub = require('./wsd-hub');
+const wsHub = require('./ws-hub');
 
-// Import the API app and helper
 const { app: apiApp, initApi } = require('./api/server');
 
 let botModule = null;
 try {
   botModule = require('./bot/index.js');
 } catch (error) {
-  // Bot is optional in some deployments
 }
 
 const PORT = process.env.PORT || 3000;
 
 const app = express();
 
-// Mount API app - API routes are defined on apiApp (they start with /api/...)
 app.use(apiApp);
 
-// Mount bot notify endpoint without a separate port
 if (botModule && botModule.notifyApp) {
   app.use('/internal', botModule.notifyApp);
 }
 
-// Serve static dashboard build
 const buildPath = path.join(__dirname, 'dashboard', 'build');
 app.use(express.static(buildPath));
 
-// SPA fallback - send index.html for any non-API route
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(buildPath, 'index.html'));
@@ -48,7 +44,6 @@ wss.on('connection', (ws, req) => {
       const msg = JSON.parse(data.toString());
       await wsHub.handleMessage(ws, msg);
     } catch (err) {
-      // ignore
     }
   });
 
@@ -64,7 +59,6 @@ server.listen(PORT, async () => {
     try {
       await initApi();
     } catch (error) {
-      // ignore
     }
   }
 

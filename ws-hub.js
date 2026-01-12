@@ -4,6 +4,7 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, 'data');
 
 const clients = new Map();
+const serverIndex = new Map();
 
 async function readConfig() {
   try {
@@ -15,6 +16,13 @@ async function readConfig() {
 }
 
 function unregister(ws) {
+  const meta = clients.get(ws);
+  if (meta && meta.serverId) {
+    const existing = serverIndex.get(meta.serverId);
+    if (existing === ws) {
+      serverIndex.delete(meta.serverId);
+    }
+  }
   clients.delete(ws);
 }
 
@@ -23,6 +31,25 @@ function getAnyAuthedClient() {
     if (meta && meta.authed) return ws;
   }
   return null;
+}
+
+function getClientByServerId(serverId) {
+  if (!serverId || typeof serverId !== 'string') return null;
+  return serverIndex.get(serverId) || null;
+}
+
+function listServers() {
+  const out = [];
+  for (const [serverId, ws] of serverIndex.entries()) {
+    const meta = clients.get(ws);
+    if (meta && meta.authed) {
+      out.push({
+        serverId,
+        connectedAt: meta.connectedAt
+      });
+    }
+  }
+  return out;
 }
 
 async function handleMessage(ws, msg) {
@@ -49,11 +76,15 @@ async function handleMessage(ws, msg) {
       return;
     }
 
+    const serverId = typeof msg.serverId === 'string' ? msg.serverId : 'default';
+
     clients.set(ws, {
       authed: true,
-      serverId: typeof msg.serverId === 'string' ? msg.serverId : 'default',
+      serverId,
       connectedAt: Date.now()
     });
+
+    serverIndex.set(serverId, ws);
 
     ws.send(JSON.stringify({ type: 'auth_result', ok: true }));
     return;
@@ -79,14 +110,27 @@ function whitelistAdd(username) {
   return sendToClient(ws, { type: 'whitelist_add', username });
 }
 
+function whitelistAddTo(serverId, username) {
+  const ws = getClientByServerId(serverId) || getAnyAuthedClient();
+  return sendToClient(ws, { type: 'whitelist_add', username, serverId });
+}
+
 function whitelistRemove(username) {
   const ws = getAnyAuthedClient();
   return sendToClient(ws, { type: 'whitelist_remove', username });
 }
 
+function whitelistRemoveFrom(serverId, username) {
+  const ws = getClientByServerId(serverId) || getAnyAuthedClient();
+  return sendToClient(ws, { type: 'whitelist_remove', username, serverId });
+}
+
 module.exports = {
   handleMessage,
   unregister,
+  listServers,
   whitelistAdd,
-  whitelistRemove
+  whitelistAddTo,
+  whitelistRemove,
+  whitelistRemoveFrom
 };

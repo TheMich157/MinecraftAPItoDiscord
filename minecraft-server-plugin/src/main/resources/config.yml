@@ -1,4 +1,4 @@
 # Default configuration for WhitelistHub plugin
-api-url: "http://localhost:3000"
+backend-url: "ws://localhost:3000/ws"
+server-id: "default"
 api-key: ""
-mode: "offline"
