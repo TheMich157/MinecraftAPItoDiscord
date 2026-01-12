@@ -8,12 +8,12 @@ const PORT = process.env.PORT || 3000;
 
 const server = express();
 
+// Mount API app - API routes are defined on apiApp (they start with /api/...)
+server.use(apiApp);
+
 // Serve static dashboard build
 const buildPath = path.join(__dirname, 'dashboard', 'build');
 server.use(express.static(buildPath));
-
-// Mount API app - API routes are defined on apiApp (they start with /api/...)
-server.use(apiApp);
 
 // SPA fallback - send index.html for any non-API route
 server.get('*', (req, res) => {

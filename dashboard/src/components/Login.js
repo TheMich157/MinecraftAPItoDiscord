@@ -17,15 +17,18 @@ function Login({ onLogin }) {
 
   useEffect(() => {
     // Check if Discord OAuth is configured
-    axios.get(`${API_URL}/api/config`)
+    axios.get(`${API_URL}/api/config/public`)
       .then(response => {
-        if (response.data.discordClientId) {
+        if (response.data && response.data.oauthEnabled) {
           setDiscordOAuthEnabled(true);
-          setDiscordClientId(response.data.discordClientId);
+          setDiscordClientId(response.data.discordClientId || '');
+        } else {
+          setDiscordOAuthEnabled(false);
         }
       })
-      .catch(() => {
-        // OAuth not configured, use manual login
+      .catch((err) => {
+        console.warn('Failed to fetch public config', err?.response?.data || err?.message || err);
+        setDiscordOAuthEnabled(false);
       });
   }, []);
 
@@ -114,9 +117,10 @@ function Login({ onLogin }) {
       } else {
         setError(response.data?.error || 'Invalid developer key');
       }
-    } catch (error) {
-      console.error('Developer login error:', error);
-      setError(error.response?.data?.error || 'Developer login failed');
+    } catch (err) {
+      console.error('Developer login error:', err);
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Developer login failed';
+      setError(msg);
     }
   };
 

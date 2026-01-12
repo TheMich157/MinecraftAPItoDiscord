@@ -100,6 +100,21 @@ app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
   });
 });
 
+// Public config for unauthenticated clients (e.g., login page) - does NOT expose secrets
+app.get('/api/config/public', async (req, res) => {
+  try {
+    res.json({
+      discordClientId: DISCORD_CLIENT_ID || '',
+      discordRedirectUri: DISCORD_REDIRECT_URI || '',
+      dashboardUrl: DASHBOARD_URL || '',
+      oauthEnabled: !!DISCORD_CLIENT_ID
+    });
+  } catch (error) {
+    console.error('Error fetching public config:', error);
+    res.status(500).json({ error: 'Failed to fetch public config' });
+  }
+});
+
 app.post('/api/config', rateLimit, requireAdmin, async (req, res) => {
   try {
     const { botToken, minecraftApiKey, notificationChannelId, allowedDiscordIds, adminDiscordIds, clientDiscordIds, minecraftServerDomain, minecraftWhitelistFile, clientId } = req.body;
@@ -476,11 +491,13 @@ app.post('/api/auth/developer', rateLimit, async (req, res) => {
 
     // Developer key must match DEVELOPER_KEY from env/config
     if (key !== envConfig.developerKey) {
+      console.warn(`[AUTH] Developer auth failed: invalid key from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
       return res.status(401).json({ success: false, error: 'Invalid developer key' });
     }
 
     // Require discordId to be provided so key alone cannot be used to bypass admin list
     if (!discordId || typeof discordId !== 'string') {
+      console.warn(`[AUTH] Developer auth failed: missing discordId from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
       return res.status(400).json({ success: false, error: 'discordId is required for developer authentication' });
     }
 
@@ -491,12 +508,15 @@ app.post('/api/auth/developer', rateLimit, async (req, res) => {
     const adminIds = new Set([...(envAdminIds || []), ...(fileAdminIds || [])]);
 
     if (adminIds.size > 0 && !adminIds.has(discordId)) {
+      console.warn(`[AUTH] Developer auth failed: discordId ${discordId} not in admin list (request from ${req.ip || req.connection?.remoteAddress || 'unknown'})`);
       return res.status(403).json({ success: false, error: 'Developer key valid but Discord ID is not listed as admin' });
     }
 
     // Success: return the discordId and a friendly username
+    console.log(`[AUTH] Developer auth success for discordId ${discordId} from ${req.ip || req.connection?.remoteAddress || 'unknown'}`);
     res.json({ success: true, discordId, username: `Dev#${discordId.slice(-4)}` });
   } catch (error) {
+    console.error('[AUTH] Developer auth error:', error);
     res.status(500).json({ success: false, error: 'Authentication failed' });
   }
 });

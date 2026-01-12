@@ -90,6 +90,49 @@ For detailed installation, see the [Complete Installation Guide](documentation/g
 
 ---
 
+## 🚀 Deploying to Render (single-host option)
+
+You can run the Dashboard and API together on one Render Web Service using the bundled `render-server.js` which serves the built dashboard and mounts the API routes.
+
+Quick steps:
+
+1. Build the dashboard:
+
+```bash
+cd dashboard
+npm install
+npm run build
+cd ..
+```
+
+2. Create a Web Service on Render pointing to this repo and set the Start Command to:
+
+```bash
+npm run start:render
+```
+
+3. Set the following environment variables (minimum recommended):
+
+- `ENCRYPTION_KEY` — 32+ characters
+- `DEVELOPER_KEY` — developer key used for fallback developer access
+- `NOTIFY_SECRET` — secret shared with Bot for notifications
+- `DASHBOARD_URL` — e.g. https://your-app.onrender.com
+- `BOT_URL` — e.g. https://your-bot.onrender.com (if bot runs separately)
+- `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` — if using Discord OAuth
+- `CORS_ORIGIN` — dashboard origin, e.g. https://your-app.onrender.com
+
+4. Bot deployment recommendation:
+
+- Run the Discord bot as a separate Render Background Worker with start command `npm run start:bot` (or `node bot/index.js`). Provide the same environment variables so it can call the API at `BOT_URL`.
+
+5. Plugin wiring notes:
+
+- Deploy the Paper plugin JAR to your Minecraft server `plugins/` folder. The plugin will create a config file that contains a plugin API key.
+- Copy that plugin API key into the Dashboard -> Configuration (`Minecraft API Key`) so the API accepts requests from the plugin.
+
+Security: store sensitive variables (ENCRYPTION_KEY, DEVELOPER_KEY, DISCORD_CLIENT_SECRET) as Render secrets; do not commit them.
+
+
 ## 📚 Documentation
 
 Comprehensive documentation is available in the `documentation/` folder. Here's what you'll find:
