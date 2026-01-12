@@ -7,6 +7,12 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const wsHub = require('./ws-hub');
 
+let keepAlive = null;
+try {
+  keepAlive = require('./keepalive');
+} catch {
+}
+
 const { app: apiApp, initApi } = require('./api/server');
 
 let botModule = null;
@@ -62,8 +68,8 @@ server.listen(PORT, async () => {
     }
   }
 
-  if (botModule && typeof botModule.startBot === 'function') {
-    botModule.startBot();
+  if (keepAlive && typeof keepAlive.startKeepAlive === 'function') {
+    keepAlive.startKeepAlive({ url: process.env.KEEPALIVE_URL, intervalMs: process.env.KEEPALIVE_INTERVAL_MS });
   }
 });
 module.exports = app;

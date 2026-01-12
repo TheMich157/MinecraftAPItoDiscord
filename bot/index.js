@@ -253,13 +253,14 @@ async function registerCommands() {
       )
   ].map(command => command.toJSON());
 
-  const config = await readConfig();
-  if (!config || !config.botToken) {
-    console.error('Bot token not configured');
+  const token = process.env.BOT_TOKEN || envConfig.botToken;
+  if (!token) {
+    console.log('BOT_TOKEN not set; skipping slash command registration');
     return;
   }
 
-  const rest = new REST({ version: '10' }).setToken(config.botToken || process.env.BOT_TOKEN || envConfig.botToken);
+  const config = await readConfig();
+  const rest = new REST({ version: '10' }).setToken(token);
   const clientId = client.application?.id || client.user?.id || config.clientId || envConfig.discordClientId || process.env.DISCORD_CLIENT_ID;
 
   if (!clientId) {
@@ -1003,14 +1004,14 @@ client.once('ready', async () => {
 });
 
 async function startBot() {
-  const config = await readConfig();
-  if (!config || !config.botToken) {
-    console.error('Bot token not found in config.json. Please configure it in the dashboard.');
+  const token = process.env.BOT_TOKEN || envConfig.botToken;
+  if (!token) {
+    console.log('BOT_TOKEN not set; bot will not start (this is expected for platform deployments)');
     return;
   }
 
   try {
-    await client.login(config.botToken);
+    await client.login(token);
   } catch (error) {
     console.error('Error logging in:', error);
   }

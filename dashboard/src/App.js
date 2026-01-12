@@ -122,19 +122,30 @@ function App() {
               !isAuthenticated ? (
                 <Login onLogin={handleLogin} />
               ) : (
-                <Navigate to={showRoleSelector ? "/" : (isDeveloper ? "/admin" : "/dashboard")} />
+                <Navigate to={showRoleSelector ? "/" : (isDeveloper ? "/admin" : (hasServers ? "/dashboard" : "/register"))} />
               )
             } 
           />
           <Route 
             path="/dashboard" 
             element={
-              isAuthenticated && (!isDeveloper || hasServers || roles.canRegister) ? (
+              isAuthenticated && (!isDeveloper && hasServers) ? (
                 <Dashboard user={user} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
             } 
+          />
+
+          <Route
+            path="/register"
+            element={
+              isAuthenticated && !isDeveloper && (roles.canRegister || !hasServers) ? (
+                <Dashboard user={user} onLogout={handleLogout} />
+              ) : (
+                <Navigate to={isAuthenticated ? (isDeveloper ? "/admin" : "/dashboard") : "/login"} />
+              )
+            }
           />
           <Route 
             path="/admin" 
@@ -150,7 +161,7 @@ function App() {
             showRoleSelector && user ? (
               <RoleSelector user={user} onSelectRole={handleRoleSelect} />
             ) : isAuthenticated ? (
-              <Navigate to={isDeveloper ? "/admin" : "/dashboard"} />
+              <Navigate to={isDeveloper ? "/admin" : (hasServers ? "/dashboard" : "/register")} />
             ) : (
               <Landing />
             )

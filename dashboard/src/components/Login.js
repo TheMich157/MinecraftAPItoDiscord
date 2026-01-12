@@ -12,6 +12,7 @@ function Login({ onLogin }) {
   const [discordOAuthEnabled, setDiscordOAuthEnabled] = useState(false);
   const [discordClientId, setDiscordClientId] = useState('');
   const [warning, setWarning] = useState('');
+  const [showManualLogin, setShowManualLogin] = useState(false);
 
   useEffect(() => {
     // Check if Discord OAuth is configured
@@ -55,6 +56,8 @@ function Login({ onLogin }) {
           window.location.href = '/';
         } else if (roles.isAdmin) {
           window.location.href = '/admin';
+        } else if (!hasServers) {
+          window.location.href = '/register';
         } else {
           window.location.href = '/dashboard';
         }
@@ -105,32 +108,43 @@ function Login({ onLogin }) {
               </svg>
               Login with Discord
             </button>
-            <div className="oauth-divider">
-              <span>or</span>
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowManualLogin((v) => !v)}
+              >
+                {showManualLogin ? 'Hide manual login' : 'Use manual login'}
+              </button>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleManualLogin}>
-          <div className="input-group">
-            <label>Discord ID</label>
-            <input
-              type="text"
-              value={discordId}
-              onChange={(e) => setDiscordId(e.target.value)}
-              placeholder="Enter your Discord ID"
-              required
-            />
-            <small>Your Discord ID can be found in Discord settings under Advanced</small>
-          </div>
+        {(!discordOAuthEnabled || showManualLogin) && (
+          <form onSubmit={handleManualLogin}>
+            <div className="input-group">
+              <label>Discord ID</label>
+              <input
+                type="text"
+                value={discordId}
+                onChange={(e) => setDiscordId(e.target.value)}
+                placeholder="Enter your Discord ID"
+                required
+              />
+              <small>Your Discord ID can be found in Discord settings under Advanced</small>
+            </div>
 
-          {error && <div className="error-message">{error}</div>}
-          {warning && <div className="warning-message">{warning}</div>}
+            {error && <div className="error-message">{error}</div>}
+            {warning && <div className="warning-message">{warning}</div>}
 
-          <button type="submit" className="btn btn-primary login-btn">
-            Login
-          </button>
-        </form>
+            <button type="submit" className="btn btn-primary login-btn">
+              Login
+            </button>
+          </form>
+        )}
+
+        {discordOAuthEnabled && !showManualLogin && error && <div className="error-message">{error}</div>}
+        {discordOAuthEnabled && !showManualLogin && warning && <div className="warning-message">{warning}</div>}
         <div style={{ marginTop: 16 }}>
           <button type="button" className="btn btn-secondary back-physical" onClick={() => navigate('/')}>Back to Landing</button>
         </div>

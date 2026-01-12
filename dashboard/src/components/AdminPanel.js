@@ -17,7 +17,6 @@ function AdminPanel({ user, onLogout }) {
   const [requests, setRequests] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [config, setConfig] = useState({
-    botToken: '',
     minecraftApiKey: '',
     minecraftServers: {},
     servers: {},
@@ -54,7 +53,6 @@ function AdminPanel({ user, onLogout }) {
       setRequests(requestsRes.data);
       const configData = configRes.data;
       setConfig({
-        botToken: configData.botToken || '',
         minecraftApiKey: configData.minecraftApiKey || '',
         minecraftServers: configData.minecraftServers || {},
         servers: configData.servers || {},
@@ -469,17 +467,6 @@ function AdminPanel({ user, onLogout }) {
                 </select>
                 <small>When disabled, server owners cannot submit new registration requests.</small>
               </div>
-              <div className="input-group">
-                <label>Discord Bot Token</label>
-                <input
-                  type="password"
-                  value={config.botToken}
-                  onChange={(e) => setConfig({ ...config, botToken: e.target.value })}
-                  placeholder="Enter Discord bot token"
-                />
-                <small>Get this from Discord Developer Portal</small>
-              </div>
-
               <div className="input-group">
                 <label>Discord Client ID (Optional - Auto-filled when bot starts)</label>
                 <input

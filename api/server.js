@@ -3,7 +3,6 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
-const { encrypt, decrypt } = require('./crypto-utils');
 const { config: envConfig, validateConfig } = require('./config');
 const { sanitizeString, validateDiscordId, validateMinecraftUsername, validateUrl, requireAdmin, rateLimit } = require('./middleware');
 const wsHub = require('../ws-hub');
@@ -333,21 +332,10 @@ async function verifyAPIKey(req, res, next) {
 
 app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
   const config = await readJSON('config.json') || {};
-
   const allAdminIds = Array.isArray(config.adminDiscordIds) ? config.adminDiscordIds : [];
   const allClientIds = Array.isArray(config.clientDiscordIds) ? config.clientDiscordIds : [];
   
-  let decryptedToken = '';
-  if (config.botToken) {
-    try {
-      decryptedToken = decrypt(config.botToken);
-    } catch (error) {
-      decryptedToken = config.botToken;
-    }
-  }
-  
   res.json({
-    botToken: decryptedToken,
     minecraftApiKey: config.minecraftApiKey || '',
     minecraftServers: config.minecraftServers || {},
     servers: config.servers || {},
@@ -448,22 +436,9 @@ app.get('/api/config/public', async (req, res) => {
 
 app.post('/api/config', rateLimit, requireAdmin, async (req, res) => {
   try {
-    const { botToken, minecraftApiKey, minecraftServers, servers, registrationEnabled, notificationChannelId, allowedDiscordIds, adminDiscordIds, clientDiscordIds, minecraftServerId, minecraftServerDomain, minecraftWhitelistFile, clientId } = req.body;
+    const { minecraftApiKey, minecraftServers, servers, registrationEnabled, notificationChannelId, allowedDiscordIds, adminDiscordIds, clientDiscordIds, minecraftServerId, minecraftServerDomain, minecraftWhitelistFile, clientId } = req.body;
     
     const currentConfig = await readJSON('config.json') || {};
-    
-    let encryptedToken = currentConfig.botToken;
-    if (botToken !== undefined && botToken !== '') {
-      if (typeof botToken !== 'string' || botToken.length > 200) {
-        return res.status(400).json({ error: 'Invalid bot token format' });
-      }
-      try {
-        encryptedToken = encrypt(botToken);
-      } catch (error) {
-        console.error('Failed to encrypt bot token:', error);
-        return res.status(500).json({ error: 'Failed to encrypt bot token. Ensure ENCRYPTION_KEY is set.' });
-      }
-    }
     
     if (minecraftApiKey !== undefined && (typeof minecraftApiKey !== 'string' || minecraftApiKey.length > 200)) {
       return res.status(400).json({ error: 'Invalid API key format' });
@@ -547,7 +522,6 @@ app.post('/api/config', rateLimit, requireAdmin, async (req, res) => {
 
     const newConfig = {
       ...currentConfig,
-      botToken: encryptedToken,
       minecraftApiKey: minecraftApiKey !== undefined ? sanitizeString(minecraftApiKey, 200) : currentConfig.minecraftApiKey,
       minecraftServers: sanitizedMinecraftServers,
       servers: sanitizedServers,

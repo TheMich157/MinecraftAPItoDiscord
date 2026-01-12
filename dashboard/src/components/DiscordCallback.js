@@ -47,6 +47,8 @@ function DiscordCallback({ onLogin }) {
           window.location.href = '/';
         } else if (roles.isAdmin) {
           window.location.href = '/admin';
+        } else if (!hasServers) {
+          window.location.href = '/register';
         } else {
           window.location.href = '/dashboard';
         }

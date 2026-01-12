@@ -24,15 +24,6 @@ async function readConfig(cache = true) {
     const data = await fs.readFile(path.join(DATA_DIR, 'config.json'), 'utf8');
     const config = JSON.parse(data);
     
-    if (config.botToken) {
-      try {
-        const { decrypt } = require('../api/crypto-utils');
-        config.botToken = decrypt(config.botToken);
-      } catch (error) {
-        console.error('Failed to decrypt bot token:', error);
-      }
-    }
-    
     if (cache) {
       configCache.data = config;
       configCache.timestamp = Date.now();
