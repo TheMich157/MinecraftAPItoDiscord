@@ -7,12 +7,9 @@ const API_URL = process.env.REACT_APP_API_URL || '';
 
 function Login({ onLogin }) {
   const navigate = useNavigate();
-  const [discordId, setDiscordId] = useState('');
   const [error, setError] = useState('');
   const [discordOAuthEnabled, setDiscordOAuthEnabled] = useState(false);
   const [discordClientId, setDiscordClientId] = useState('');
-  const [warning, setWarning] = useState('');
-  const [showManualLogin, setShowManualLogin] = useState(false);
 
   useEffect(() => {
     // Check if Discord OAuth is configured
@@ -30,45 +27,6 @@ function Login({ onLogin }) {
         setDiscordOAuthEnabled(false);
       });
   }, []);
-
-  const handleManualLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!discordId) {
-      setError('Please enter your Discord ID');
-      return;
-    }
-
-    try {
-      if (discordOAuthEnabled) {
-        setWarning('Discord OAuth is enabled; manual Discord ID login is discouraged. Use the "Login with Discord" button when possible.');
-      }
-
-      const response = await axios.post(`${API_URL}/api/auth/manual`, { discordId });
-      if (response.data && response.data.success) {
-        const { user: userData, roles } = response.data;
-        const authToken = userData.discordId;
-        localStorage.setItem('authToken', authToken);
-        const hasServers = Array.isArray(roles?.servers) && roles.servers.length > 0;
-        onLogin(userData, roles.isAdmin, roles, authToken);
-        if (roles.isAdmin && hasServers) {
-          window.location.href = '/';
-        } else if (roles.isAdmin) {
-          window.location.href = '/admin';
-        } else if (!hasServers) {
-          window.location.href = '/register';
-        } else {
-          window.location.href = '/dashboard';
-        }
-      } else {
-        setError(response.data?.error || 'Access denied');
-      }
-    } catch (err) {
-      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Access denied';
-      setError(msg);
-    }
-  };
 
   const handleDiscordLogin = async () => {
     try {
@@ -96,7 +54,7 @@ function Login({ onLogin }) {
             </div>
         </div>
 
-        {discordOAuthEnabled && (
+        {discordOAuthEnabled ? (
           <div className="discord-oauth-section">
             <button
               type="button"
@@ -108,43 +66,20 @@ function Login({ onLogin }) {
               </svg>
               Login with Discord
             </button>
-            <div style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowManualLogin((v) => !v)}
-              >
-                {showManualLogin ? 'Hide manual login' : 'Use manual login'}
-              </button>
+
+            {error && <div className="error-message" style={{ marginTop: 14 }}>{error}</div>}
+          </div>
+        ) : (
+          <div>
+            <div className="error-message">
+              Discord OAuth is not configured on the server.
             </div>
+            <button type="button" className="btn btn-secondary login-btn" onClick={() => navigate('/')}
+            >
+              Back to Landing
+            </button>
           </div>
         )}
-
-        {(!discordOAuthEnabled || showManualLogin) && (
-          <form onSubmit={handleManualLogin}>
-            <div className="input-group">
-              <label>Discord ID</label>
-              <input
-                type="text"
-                value={discordId}
-                onChange={(e) => setDiscordId(e.target.value)}
-                placeholder="Enter your Discord ID"
-                required
-              />
-              <small>Your Discord ID can be found in Discord settings under Advanced</small>
-            </div>
-
-            {error && <div className="error-message">{error}</div>}
-            {warning && <div className="warning-message">{warning}</div>}
-
-            <button type="submit" className="btn btn-primary login-btn">
-              Login
-            </button>
-          </form>
-        )}
-
-        {discordOAuthEnabled && !showManualLogin && error && <div className="error-message">{error}</div>}
-        {discordOAuthEnabled && !showManualLogin && warning && <div className="warning-message">{warning}</div>}
         <div style={{ marginTop: 16 }}>
           <button type="button" className="btn btn-secondary back-physical" onClick={() => navigate('/')}>Back to Landing</button>
         </div>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import Landing from './components/Landing';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import Registration from './components/Registration';
 import AdminPanel from './components/AdminPanel';
 import RoleSelector from './components/RoleSelector';
 import DiscordCallback from './components/DiscordCallback';
@@ -122,7 +123,7 @@ function App() {
               !isAuthenticated ? (
                 <Login onLogin={handleLogin} />
               ) : (
-                <Navigate to={showRoleSelector ? "/" : (isDeveloper ? "/admin" : (hasServers ? "/dashboard" : "/register"))} />
+                <Navigate to={showRoleSelector ? "/" : (isDeveloper ? "/admin" : (hasServers ? "/dashboard" : "/registration"))} />
               )
             } 
           />
@@ -138,15 +139,17 @@ function App() {
           />
 
           <Route
-            path="/register"
+            path="/registration"
             element={
               isAuthenticated && !isDeveloper && (roles.canRegister || !hasServers) ? (
-                <Dashboard user={user} onLogout={handleLogout} />
+                <Registration user={user} onLogout={handleLogout} />
               ) : (
                 <Navigate to={isAuthenticated ? (isDeveloper ? "/admin" : "/dashboard") : "/login"} />
               )
             }
           />
+
+          <Route path="/register" element={<Navigate to="/registration" replace />} />
           <Route 
             path="/admin" 
             element={
@@ -161,7 +164,7 @@ function App() {
             showRoleSelector && user ? (
               <RoleSelector user={user} onSelectRole={handleRoleSelect} />
             ) : isAuthenticated ? (
-              <Navigate to={isDeveloper ? "/admin" : (hasServers ? "/dashboard" : "/register")} />
+              <Navigate to={isDeveloper ? "/admin" : (hasServers ? "/dashboard" : "/registration")} />
             ) : (
               <Landing />
             )

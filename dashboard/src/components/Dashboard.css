@@ -69,6 +69,112 @@
   overflow: hidden;
 }
 
+.registration-hero {
+  padding: 18px 20px;
+}
+
+.registration-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stepper {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.step-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #2a2a2a;
+  background: rgba(102,126,234,0.12);
+  border: 1px solid rgba(102,126,234,0.18);
+}
+
+.step-dot-active {
+  background: rgba(102,126,234,0.20);
+}
+
+.step-body {
+  min-width: 0;
+}
+
+.step-title {
+  font-weight: 700;
+  color: #222;
+}
+
+.step-sub {
+  opacity: 0.75;
+  font-size: 12px;
+}
+
+.step-line {
+  height: 2px;
+  flex: 1;
+  min-width: 24px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.registration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.registration-item {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.registration-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.registration-title {
+  font-weight: 800;
+  color: #222;
+}
+
+.registration-meta {
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+.registration-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.registration-hint {
+  margin-top: 10px;
+  opacity: 0.8;
+}
+
 .panel-topbar {
   display: flex;
   align-items: flex-end;

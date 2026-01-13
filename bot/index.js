@@ -155,7 +155,7 @@ if (validateConfig()) {
 }
 
 function startNotifyServer(portOverride) {
-  const listenPort = portOverride || BOT_PORT || 3002;
+  const listenPort = portOverride || BOT_PORT || 3012;
   return app.listen(listenPort, () => {
     console.log(`Bot notification server running on port ${listenPort}`);
     console.log(`API URL: ${API_URL}`);

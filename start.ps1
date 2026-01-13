@@ -43,15 +43,21 @@ if ($missingDeps.Count -gt 0) {
 Write-Host "✓ All dependencies are installed" -ForegroundColor Green
 Write-Host ""
 
-# Check if concurrently is available
-Write-Host "Starting all services..." -ForegroundColor Yellow
+# One-port mode: build dashboard then start unified server
+Write-Host "Building dashboard and starting unified server..." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Services will start on:" -ForegroundColor Cyan
 Write-Host "  - Unified Server: http://localhost:3000" -ForegroundColor White
-Write-Host "  - Discord Bot:    Runs inside the unified server process" -ForegroundColor White
+Write-Host "  - API + Dashboard served together from the unified server" -ForegroundColor White
 Write-Host "" 
 Write-Host "Press Ctrl+C to stop all services" -ForegroundColor Yellow
 Write-Host ""
 
-# Start all services using npm script
-npm run dev
+# Build dashboard and start unified server
+npm run build:dashboard
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "✗ Dashboard build failed" -ForegroundColor Red
+    exit 1
+}
+
+npm start

@@ -12,7 +12,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function Dashboard({ user, onLogout }) {
+function Dashboard({ user, onLogout, mode = 'dashboard' }) {
   const [loading, setLoading] = useState(true);
   const [registrations, setRegistrations] = useState([]);
   const [serverRoles, setServerRoles] = useState([]);
@@ -54,6 +54,8 @@ function Dashboard({ user, onLogout }) {
       return false;
     }
   }, []);
+
+  const isRegistrationMode = mode === 'registration';
 
   useEffect(() => {
     const savedRoles = localStorage.getItem('roles');
@@ -402,12 +404,54 @@ function Dashboard({ user, onLogout }) {
       </header>
 
       <div className="container">
-        {serverRoles.length === 0 ? (
+        {isRegistrationMode ? (
           <>
+            <div className="card registration-hero">
+              <div className="registration-hero-top">
+                <div>
+                  <h2 style={{ marginBottom: 6 }}>Registration</h2>
+                  <div style={{ opacity: 0.8 }}>Complete the 3-step onboarding to activate your server owner access.</div>
+                </div>
+                <button className="btn btn-secondary" onClick={async () => { await refreshRoles(); await fetchRegistrations(); }}>
+                  <RefreshCw size={18} /> Refresh access
+                </button>
+              </div>
+              <div className="stepper">
+                <div className="step">
+                  <div className="step-dot step-dot-active">1</div>
+                  <div className="step-body">
+                    <div className="step-title">Submit registration</div>
+                    <div className="step-sub">Server details + online mode</div>
+                  </div>
+                </div>
+                <div className="step-line" />
+                <div className="step">
+                  <div className="step-dot">2</div>
+                  <div className="step-body">
+                    <div className="step-title">Download config</div>
+                    <div className="step-sub">After admin approval</div>
+                  </div>
+                </div>
+                <div className="step-line" />
+                <div className="step">
+                  <div className="step-dot">3</div>
+                  <div className="step-body">
+                    <div className="step-title">Finish setup</div>
+                    <div className="step-sub">Plugin connects + confirm</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid-2">
             {canRegister ? (
               <div className="card">
-                <h2>Register Your Server</h2>
-                <p style={{ marginTop: 4, opacity: 0.8 }}>Step 1/3. Submit your server details. A platform admin must approve your registration before you can download the plugin config.</p>
+                <div className="card-header" style={{ alignItems: 'flex-start' }}>
+                  <div>
+                    <h2 style={{ marginBottom: 6 }}>Step 1/3 — Submit server details</h2>
+                    <div style={{ opacity: 0.8 }}>A platform admin must approve before you can download the plugin config.</div>
+                  </div>
+                </div>
                 <form onSubmit={handleSubmitRegistration}>
                   <div className="input-group">
                     <label>Server ID</label>
@@ -465,15 +509,23 @@ function Dashboard({ user, onLogout }) {
               <div className="card">
                 <h2>Access required</h2>
                 <p style={{ marginTop: 4, opacity: 0.8 }}>You are not currently allowed to register a server. If you believe this is a mistake, ask a platform admin to enable registrations or add you as a server member.</p>
-                <button className="btn btn-secondary" onClick={() => { fetchRegistrations(); refreshRoles(); }}>
-                  <RefreshCw size={18} /> Refresh access
-                </button>
+                <div className="action-buttons">
+                  <button className="btn btn-secondary" onClick={() => { fetchRegistrations(); refreshRoles(); }}>
+                    <RefreshCw size={18} /> Refresh access
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => window.location.href = '/'}>
+                    Back to Home
+                  </button>
+                </div>
               </div>
             )}
 
             <div className="card">
               <div className="card-header">
-                <h2>My Registrations</h2>
+                <div>
+                  <h2 style={{ marginBottom: 6 }}>Step 2/3 — Download config</h2>
+                  <div style={{ opacity: 0.8 }}>Then install the plugin and start your Minecraft server.</div>
+                </div>
                 <button onClick={fetchRegistrations} className="btn btn-secondary" disabled={loading}>
                   <RefreshCw size={18} className={loading ? 'spinning' : ''} /> Refresh
                 </button>
@@ -484,60 +536,47 @@ function Dashboard({ user, onLogout }) {
               ) : registrations.length === 0 ? (
                 <div className="empty-state">No registrations found. Submit one above!</div>
               ) : (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Server</th>
-                      <th>Status</th>
-                      <th>Submitted</th>
-                      <th>Next step</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registrations.map((r) => (
-                      <tr key={r.id}>
-                        <td>{escapeHtml(r.serverName || r.serverId)} ({escapeHtml(r.serverId)})</td>
-                        <td>
-                          <span className={`badge badge-${r.status}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          {r.status === 'approved' ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                              <button className="btn btn-secondary" onClick={() => downloadPluginConfig(r.serverId)}>
-                                <Download size={18} /> Download config (Step 2/3)
-                              </button>
-                              <button
-                                className="btn btn-primary"
-                                onClick={async () => {
-                                  const connected = await checkServerConnection(r.serverId);
-                                  if (!connected) {
-                                    setToast('Server is not connected yet. Start the Minecraft server with the plugin installed, then try again.');
-                                    setTimeout(() => setToast(''), 3500);
-                                    return;
-                                  }
-                                  await finishSetup(r.serverId);
-                                }}
-                              >
-                                Finish setup (Step 3/3)
-                              </button>
-                              <button className="btn btn-secondary" onClick={async () => { await refreshRoles(); await fetchRegistrations(); }}>
-                                <RefreshCw size={18} /> Refresh access
-                              </button>
-                            </div>
-                          ) : r.status === 'pending' ? (
-                            <span style={{ opacity: 0.8 }}>Waiting for approval</span>
-                          ) : (
-                            <span style={{ opacity: 0.8 }}>Rejected</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="registration-list">
+                  {registrations.map((r) => (
+                    <div key={r.id} className="registration-item">
+                      <div className="registration-item-top">
+                        <div>
+                          <div className="registration-title">{escapeHtml(r.serverName || r.serverId)} <span style={{ opacity: 0.7 }}>({escapeHtml(r.serverId)})</span></div>
+                          <div className="registration-meta">Submitted {new Date(r.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <span className={`badge badge-${r.status}`}>{r.status}</span>
+                      </div>
+
+                      {r.status === 'approved' ? (
+                        <div className="registration-actions">
+                          <button className="btn btn-secondary" onClick={() => downloadPluginConfig(r.serverId)}>
+                            <Download size={18} /> Download config (Step 2/3)
+                          </button>
+                          <button
+                            className="btn btn-primary"
+                            onClick={async () => {
+                              const connected = await checkServerConnection(r.serverId);
+                              if (!connected) {
+                                setToast('Server is not connected yet. Start the Minecraft server with the plugin installed, then try again.');
+                                setTimeout(() => setToast(''), 3500);
+                                return;
+                              }
+                              await finishSetup(r.serverId);
+                            }}
+                          >
+                            Finish setup (Step 3/3)
+                          </button>
+                        </div>
+                      ) : r.status === 'pending' ? (
+                        <div className="registration-hint">Waiting for approval from a platform admin.</div>
+                      ) : (
+                        <div className="registration-hint">Rejected. Contact a platform admin if you believe this is a mistake.</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
+            </div>
             </div>
           </>
         ) : (
@@ -598,8 +637,8 @@ function Dashboard({ user, onLogout }) {
                 <button className={`tab-btn ${activeTab === 'members' ? 'active' : ''}`} onClick={() => { setActiveTab('members'); fetchMembers(selectedServerId); }}>
                   <Users size={18} /> Members
                 </button>
-                <button className={`tab-btn ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => { setActiveTab('clients'); fetchServerInfo(selectedServerId); }}>
-                  <Shield size={18} /> Clients
+                <button className={`tab-btn ${activeTab === 'allowlist' ? 'active' : ''}`} onClick={() => { setActiveTab('allowlist'); fetchServerInfo(selectedServerId); }}>
+                  <Shield size={18} /> Allowlist
                 </button>
                 <button className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`} onClick={() => { setActiveTab('events'); }}>
                   <Activity size={18} /> Events
@@ -743,7 +782,7 @@ function Dashboard({ user, onLogout }) {
                   </div>
                 )}
 
-                {activeTab === 'clients' && (
+                {activeTab === 'allowlist' && (
                   <div className="fade-in">
                     <h3>Client Allowlist (Discord IDs)</h3>
                     <div className="card-inner">
