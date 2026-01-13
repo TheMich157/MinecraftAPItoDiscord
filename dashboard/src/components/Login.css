@@ -4,15 +4,20 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
+  background: radial-gradient(1200px 800px at 20% 10%, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%),
+    linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .login-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 16px;
   padding: 40px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   width: 100%;
   max-width: 450px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(12px);
+  position: relative;
 }
 
 .login-header {
@@ -43,35 +48,6 @@
 .login-header p {
   color: #666;
   font-size: 16px;
-}
-
-.login-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 30px;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.tab {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
-}
-
-.tab:hover {
-  color: #667eea;
 }
 
 .login-card .input-group {
@@ -135,6 +111,10 @@
   background: #4752C4;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+}
+
+.btn-discord:active {
+  transform: translateY(-1px);
 }
 
 .discord-oauth-section {

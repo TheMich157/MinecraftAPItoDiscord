@@ -3,6 +3,8 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
+
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const { config: envConfig, validateConfig } = require('./config');
 const { sanitizeString, validateDiscordId, validateMinecraftUsername, validateUrl, requireAdmin, rateLimit } = require('./middleware');
 const wsHub = require('../ws-hub');
@@ -30,8 +32,29 @@ const PORT = envConfig.port;
 
 const DISCORD_CLIENT_ID = envConfig.discord.clientId;
 const DISCORD_CLIENT_SECRET = envConfig.discord.clientSecret;
-const DISCORD_REDIRECT_URI = envConfig.discord.redirectUri;
+const DISCORD_REDIRECT_URIS = (envConfig.discord.redirectUri || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 const DASHBOARD_URL = envConfig.dashboard.url;
+
+function pickDiscordRedirectUri(req) {
+  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').toString();
+  const host = (req.headers['x-forwarded-host'] || req.get('host') || '').toString();
+  const desired = `${proto}://${host}/auth/discord/callback`;
+
+  if (DISCORD_REDIRECT_URIS.length === 0) return desired;
+
+  const match = DISCORD_REDIRECT_URIS.find(u => {
+    try {
+      return new URL(u).host === host;
+    } catch {
+      return false;
+    }
+  });
+
+  return match || DISCORD_REDIRECT_URIS[0];
+}
 
 const corsOptions = {
   origin: envConfig.cors.origin === '*' ? '*' : envConfig.cors.origin.split(',').map(o => o.trim()),
@@ -334,6 +357,7 @@ app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
   const config = await readJSON('config.json') || {};
   const allAdminIds = Array.isArray(config.adminDiscordIds) ? config.adminDiscordIds : [];
   const allClientIds = Array.isArray(config.clientDiscordIds) ? config.clientDiscordIds : [];
+  const redirectUri = pickDiscordRedirectUri(req);
   
   res.json({
     minecraftApiKey: config.minecraftApiKey || '',
@@ -348,7 +372,7 @@ app.get('/api/config', rateLimit, requireAdmin, async (req, res) => {
     minecraftWhitelistFile: config.minecraftWhitelistFile || '',
     clientId: config.clientId || '',
     discordClientId: DISCORD_CLIENT_ID,
-    discordRedirectUri: DISCORD_REDIRECT_URI
+    discordRedirectUri: redirectUri || ''
   });
 });
 
@@ -422,9 +446,10 @@ app.get('/api/auth/roles', rateLimit, async (req, res) => {
 // Public config for unauthenticated clients (e.g., login page) - does NOT expose secrets
 app.get('/api/config/public', async (req, res) => {
   try {
+    const redirectUri = pickDiscordRedirectUri(req);
     res.json({
       discordClientId: DISCORD_CLIENT_ID || '',
-      discordRedirectUri: DISCORD_REDIRECT_URI || '',
+      discordRedirectUri: redirectUri || '',
       dashboardUrl: DASHBOARD_URL || '',
       oauthEnabled: !!DISCORD_CLIENT_ID
     });
@@ -551,7 +576,8 @@ app.get('/api/auth/discord', (req, res) => {
   
   const state = Math.random().toString(36).substring(7);
   const scope = 'identify';
-  const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=${scope}&state=${state}`;
+  const redirectUri = pickDiscordRedirectUri(req);
+  const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
   
   res.json({ authUrl, state });
 });
@@ -568,13 +594,14 @@ app.post('/api/auth/discord/callback', async (req, res) => {
   }
   
   try {
+    const redirectUri = pickDiscordRedirectUri(req);
     const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', 
       new URLSearchParams({
         client_id: DISCORD_CLIENT_ID,
         client_secret: DISCORD_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: DISCORD_REDIRECT_URI
+        redirect_uri: redirectUri
       }),
       {
         headers: {
@@ -601,10 +628,12 @@ app.post('/api/auth/discord/callback', async (req, res) => {
     const adminIds = Array.isArray(fileConfig.adminDiscordIds) ? fileConfig.adminDiscordIds : [];
 
     if (adminIds.length === 0) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+      fileConfig.adminDiscordIds = [discordId];
+      await writeJSON('config.json', fileConfig);
     }
 
-    const isAdmin = adminIds.includes(discordId);
+    const updatedAdminIds = Array.isArray(fileConfig.adminDiscordIds) ? fileConfig.adminDiscordIds : [];
+    const isAdmin = updatedAdminIds.includes(discordId);
     const servers = getUserServerRoles(fileConfig, discordId);
     const isServerUser = servers.length > 0;
 
@@ -677,6 +706,77 @@ app.get('/api/platform/servers', rateLimit, requireAdmin, async (req, res) => {
   const cfg = await readJSON('config.json') || {};
   const servers = getServersConfig(cfg);
   res.json({ servers: Object.keys(servers) });
+});
+
+app.get('/api/platform/users', rateLimit, requireAdmin, async (req, res) => {
+  try {
+    const cfg = await readJSON('config.json') || {};
+    const adminIds = Array.isArray(cfg.adminDiscordIds) ? cfg.adminDiscordIds : [];
+    const servers = getServersConfig(cfg);
+    const registrations = await readJSON('registrations.json') || [];
+    const registrationEnabled = cfg.registrationEnabled !== false;
+
+    const userMap = new Map();
+
+    adminIds.forEach(id => {
+      if (!userMap.has(id)) {
+        userMap.set(id, { discordId: id, isAdmin: true, canRegister: false, servers: [] });
+      } else {
+        userMap.get(id).isAdmin = true;
+      }
+    });
+
+    Object.entries(servers).forEach(([serverId, serverCfg]) => {
+      const members = serverCfg.members || {};
+      Object.keys(members).forEach(discordId => {
+        if (!userMap.has(discordId)) {
+          userMap.set(discordId, { discordId, isAdmin: false, canRegister: false, servers: [] });
+        }
+        userMap.get(discordId).servers.push(serverId);
+      });
+    });
+
+    registrations.forEach(r => {
+      const id = r.ownerDiscordId;
+      if (id && !userMap.has(id)) {
+        const canReg = registrationEnabled && !adminIds.includes(id);
+        userMap.set(id, { discordId: id, isAdmin: false, canRegister: canReg, servers: [] });
+      }
+    });
+
+    res.json(Array.from(userMap.values()));
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.put('/api/platform/users/:discordId', rateLimit, requireAdmin, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const { isAdmin, canRegister } = req.body;
+
+    if (!validateDiscordId(discordId)) {
+      return res.status(400).json({ error: 'Invalid Discord ID' });
+    }
+
+    const cfg = await readJSON('config.json') || {};
+    let adminIds = Array.isArray(cfg.adminDiscordIds) ? cfg.adminDiscordIds : [];
+
+    if (isAdmin && !adminIds.includes(discordId)) {
+      adminIds.push(discordId);
+    } else if (!isAdmin && adminIds.includes(discordId)) {
+      adminIds = adminIds.filter(id => id !== discordId);
+    }
+
+    cfg.adminDiscordIds = adminIds;
+    await writeJSON('config.json', cfg);
+
+    res.json({ success: true, message: 'User updated' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
 });
 
 app.get('/api/servers/:serverId/me', rateLimit, requireServerMember(['owner', 'dev', 'viewer']), async (req, res) => {

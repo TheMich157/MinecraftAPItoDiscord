@@ -1,7 +1,15 @@
+const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 const config = {
-  port: parseInt(process.env.PORT || '3001', 10),
+  port: parseInt(
+    process.env.API_PORT
+      || (process.env.PORT && process.env.PORT !== '3000' ? process.env.PORT : '3001'),
+    10
+  ),
   nodeEnv: process.env.NODE_ENV || 'development',
-  
+
   discord: {
     clientId: process.env.DISCORD_CLIENT_ID || '',
     clientSecret: process.env.DISCORD_CLIENT_SECRET || '',

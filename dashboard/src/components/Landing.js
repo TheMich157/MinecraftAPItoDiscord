@@ -76,6 +76,10 @@ function Landing() {
     navigate('/login');
   };
 
+  const handleRegisterServer = () => {
+    navigate('/registration');
+  };
+
   return (
     <div className="landing-container">
       <nav className="landing-nav">
@@ -111,11 +115,15 @@ function Landing() {
             Automate approvals, manage users, and control your server—all from one powerful platform.
           </p>
           <div className="hero-buttons">
-            <button onClick={handleGetStarted} className="btn-hero btn-primary">
-              <LogIn size={20} />
-              Get Started
+            <button onClick={handleRegisterServer} className="btn-hero btn-primary">
+              <Server size={20} />
+              Register Your Server
             </button>
-            <a href="#features" className="btn-hero btn-secondary">
+            <button onClick={handleGetStarted} className="btn-hero btn-secondary">
+              <LogIn size={20} />
+              Login
+            </button>
+            <a href="#features" className="btn-hero btn-outline">
               Learn More
             </a>
           </div>

@@ -16,6 +16,11 @@ function AdminPanel({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('requests');
   const [requests, setRequests] = useState([]);
   const [registrations, setRegistrations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [userQuery, setUserQuery] = useState('');
+  const [registrationFilter, setRegistrationFilter] = useState('all');
+  const [showLegacy, setShowLegacy] = useState(false);
+  const [hasServers, setHasServers] = useState(false);
   const [config, setConfig] = useState({
     minecraftApiKey: '',
     minecraftServers: {},
@@ -29,7 +34,6 @@ function AdminPanel({ user, onLogout }) {
     minecraftWhitelistFile: '',
     clientId: ''
   });
-  const [newClientId, setNewClientId] = useState('');
   const [serverIP, setServerIP] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingRequest, setEditingRequest] = useState(null);
@@ -38,6 +42,14 @@ function AdminPanel({ user, onLogout }) {
 
   useEffect(() => {
     fetchData();
+    try {
+      const savedRoles = localStorage.getItem('roles');
+      const parsed = savedRoles ? JSON.parse(savedRoles) : null;
+      const serverCount = Array.isArray(parsed?.servers) ? parsed.servers.length : 0;
+      setHasServers(serverCount > 0);
+    } catch {
+      setHasServers(false);
+    }
   }, []);
 
   const fetchData = async () => {
@@ -72,6 +84,13 @@ function AdminPanel({ user, onLogout }) {
         setRegistrations(Array.isArray(regsRes.data) ? regsRes.data : []);
       } catch (e) {
         setRegistrations([]);
+      }
+
+      try {
+        const usersRes = await axios.get(`${API_URL}/api/platform/users`, { headers });
+        setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+      } catch (e) {
+        setUsers([]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -108,17 +127,46 @@ function AdminPanel({ user, onLogout }) {
     }
   };
 
-  const reviewRegistration = async (registration, status) => {
+  const reviewRegistration = async (registration, newStatus) => {
     try {
       const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
-      await axios.put(`${API_URL}/api/platform/registrations/${registration.id}`, { status }, { headers });
-      fetchData();
+      await axios.put(`${API_URL}/api/platform/registrations/${registration.id}`, { status: newStatus }, { headers });
+      await fetchData();
     } catch (error) {
       console.error('Error reviewing registration:', error);
-      alert('Failed to review registration');
     }
   };
+
+  const updateUserRole = async (discordId, isAdmin, canRegister) => {
+    try {
+      const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const headers = authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+      await axios.put(`${API_URL}/api/platform/users/${encodeURIComponent(discordId)}`, { isAdmin, canRegister }, { headers });
+      await fetchData();
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  };
+
+  const filteredUsers = users.filter(u => {
+    const q = (userQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    const id = (u.discordId || '').toLowerCase();
+    const servers = (u.servers || []).map(s => s.toLowerCase()).join(' ');
+    return id.includes(q) || servers.includes(q);
+  });
+
+  const filteredRegistrations = registrations
+    .filter(r => {
+      if (registrationFilter === 'all') return true;
+      return r.status === registrationFilter;
+    })
+    .sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
 
   const handleConfigSave = async (e) => {
     if (e) e.preventDefault();
@@ -228,33 +276,6 @@ function AdminPanel({ user, onLogout }) {
     });
   };
 
-  const handleAddClientId = () => {
-    if (!newClientId.trim()) {
-      alert('Please enter a Discord ID');
-      return;
-    }
-    
-    const currentIds = config.clientDiscordIds.split('\n').filter(id => id.trim().length > 0);
-    if (currentIds.includes(newClientId.trim())) {
-      alert('This Discord ID is already in the list');
-      return;
-    }
-    
-    setConfig({
-      ...config,
-      clientDiscordIds: [...currentIds, newClientId.trim()].join('\n')
-    });
-    setNewClientId('');
-  };
-
-  const handleRemoveClientId = (idToRemove) => {
-    const currentIds = config.clientDiscordIds.split('\n').filter(id => id.trim() !== idToRemove.trim());
-    setConfig({
-      ...config,
-      clientDiscordIds: currentIds.join('\n')
-    });
-  };
-
   return (
     <div className="admin-container">
       <header className="admin-header">
@@ -262,6 +283,11 @@ function AdminPanel({ user, onLogout }) {
           <h1>WhitelistHub Admin</h1>
           <div className="header-actions">
             <span className="user-info">Admin: {user.username}</span>
+            {hasServers && (
+              <button onClick={() => { localStorage.setItem('isDeveloper', 'false'); window.location.href = '/'; }} className="btn btn-secondary">
+                <Users size={18} /> Switch to Dashboard
+              </button>
+            )}
             <button onClick={onLogout} className="btn btn-secondary">
               <LogOut size={18} /> Logout
             </button>
@@ -271,28 +297,28 @@ function AdminPanel({ user, onLogout }) {
 
       <div className="admin-tabs">
         <button
-          className={`tab ${activeTab === 'requests' ? 'active' : ''}`}
+          className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
           onClick={() => setActiveTab('requests')}
         >
-          <Users size={18} /> Whitelist Requests
+          <Users size={18} /> Requests
         </button>
         <button
-          className={`tab ${activeTab === 'registrations' ? 'active' : ''}`}
+          className={`tab-btn ${activeTab === 'registrations' ? 'active' : ''}`}
           onClick={() => setActiveTab('registrations')}
         >
-          <Users size={18} /> Server Registrations
+          <CheckCircle size={18} /> Registrations
         </button>
         <button
-          className={`tab ${activeTab === 'config' ? 'active' : ''}`}
+          className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          <Users size={18} /> Users
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'config' ? 'active' : ''}`}
           onClick={() => setActiveTab('config')}
         >
           <Settings size={18} /> Configuration
-        </button>
-        <button
-          className={`tab ${activeTab === 'clients' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clients')}
-        >
-          <Users size={18} /> Client Management
         </button>
       </div>
 
@@ -405,49 +431,130 @@ function AdminPanel({ user, onLogout }) {
 
         {activeTab === 'registrations' && (
           <div className="card">
-            <h2>Server Registrations</h2>
-            {registrations.length === 0 ? (
-              <div className="empty-state">No registrations found.</div>
+            <div className="card-header">
+              <h2>Server Registrations</h2>
+              <div className="tab-tools">
+                <div className="filter-buttons">
+                  <button
+                    className={`btn btn-sm ${registrationFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setRegistrationFilter('all')}
+                  >
+                    All
+                  </button>
+                  <button
+                    className={`btn btn-sm ${registrationFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setRegistrationFilter('pending')}
+                  >
+                    Pending
+                  </button>
+                  <button
+                    className={`btn btn-sm ${registrationFilter === 'approved' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setRegistrationFilter('approved')}
+                  >
+                    Approved
+                  </button>
+                  <button
+                    className={`btn btn-sm ${registrationFilter === 'rejected' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setRegistrationFilter('rejected')}
+                  >
+                    Rejected
+                  </button>
+                </div>
+                <button onClick={fetchData} className="btn btn-secondary" disabled={loading}>
+                  <RefreshCw size={18} className={loading ? 'spinning' : ''} /> Refresh
+                </button>
+              </div>
+            </div>
+            {loading ? (
+              <div className="loading">Loading...</div>
+            ) : filteredRegistrations.length === 0 ? (
+              <div className="empty-state">No {registrationFilter !== 'all' ? registrationFilter : ''} registrations found.</div>
             ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Server ID</th>
-                    <th>Name</th>
-                    <th>Owner</th>
-                    <th>IP</th>
-                    <th>Port</th>
-                    <th>Mode</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {registrations.map((r) => (
-                    <tr key={r.id}>
-                      <td>{escapeHtml(r.serverId)}</td>
-                      <td>{escapeHtml(r.serverName || '')}</td>
-                      <td>{escapeHtml(r.ownerDiscordId || '')}</td>
-                      <td>{escapeHtml(r.serverIp || '')}</td>
-                      <td>{r.serverPort}</td>
-                      <td>{r.onlineMode ? 'Online' : 'Cracked'}</td>
-                      <td>
-                        <span className={`badge badge-${r.status}`}>{r.status}</span>
-                      </td>
-                      <td>
-                        {r.status === 'pending' ? (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="btn btn-primary" onClick={() => reviewRegistration(r, 'approved')}>Approve</button>
-                            <button className="btn btn-secondary" onClick={() => reviewRegistration(r, 'rejected')}>Reject</button>
-                          </div>
-                        ) : (
-                          <span style={{ opacity: 0.8 }}>—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="registration-list">
+                {filteredRegistrations.map((r) => (
+                  <div key={r.id} className="registration-item">
+                    <div className="registration-item-top">
+                      <div>
+                        <div className="registration-title">{escapeHtml(r.serverName || r.serverId)} <span style={{ opacity: 0.7 }}>({escapeHtml(r.serverId)})</span></div>
+                        <div className="registration-meta">
+                          Owner: {escapeHtml(r.ownerDiscordId || '—')} | {escapeHtml(r.serverIp || '—')}:{r.serverPort} | {r.onlineMode ? 'Online' : 'Cracked'}
+                        </div>
+                      </div>
+                      <span className={`badge badge-${r.status}`}>{r.status}</span>
+                    </div>
+
+                    {r.status === 'pending' ? (
+                      <div className="registration-actions">
+                        <button className="btn btn-primary" onClick={() => reviewRegistration(r, 'approved')}>Approve</button>
+                        <button className="btn btn-secondary" onClick={() => reviewRegistration(r, 'rejected')}>Reject</button>
+                      </div>
+                    ) : (
+                      <div className="registration-hint">No actions available for this status.</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="card">
+            <div className="card-header">
+              <h2>Users Management</h2>
+              <div className="tab-tools">
+                <input
+                  className="search-input"
+                  placeholder="Search by Discord ID or server..."
+                  value={userQuery}
+                  onChange={(e) => setUserQuery(e.target.value)}
+                />
+                <button onClick={fetchData} className="btn btn-secondary" disabled={loading}>
+                  <RefreshCw size={18} className={loading ? 'spinning' : ''} /> Refresh
+                </button>
+              </div>
+            </div>
+            {loading ? (
+              <div className="loading">Loading...</div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="empty-state">No users found.</div>
+            ) : (
+              <div className="user-list">
+                {filteredUsers.map((u) => (
+                  <div key={u.discordId} className="user-item">
+                    <div className="user-item-top">
+                      <div>
+                        <div className="user-title">{escapeHtml(u.discordId)}</div>
+                        <div className="user-meta">
+                          {u.isAdmin && <span className="badge badge-approved">Admin</span>}
+                          {u.canRegister && <span className="badge badge-pending">Can Register</span>}
+                          {u.servers && u.servers.length > 0 && (
+                            <span style={{ opacity: 0.8 }}>Servers: {u.servers.join(', ')}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="user-actions">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!u.isAdmin}
+                          onChange={(e) => updateUserRole(u.discordId, e.target.checked, u.canRegister)}
+                        />
+                        Admin
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!u.canRegister}
+                          onChange={(e) => updateUserRole(u.discordId, u.isAdmin, e.target.checked)}
+                        />
+                        Can Register
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -458,13 +565,22 @@ function AdminPanel({ user, onLogout }) {
             <form onSubmit={handleConfigSave}>
               <div className="input-group">
                 <label>Server Registrations</label>
-                <select
-                  value={config.registrationEnabled ? 'enabled' : 'disabled'}
-                  onChange={(e) => setConfig({ ...config, registrationEnabled: e.target.value === 'enabled' })}
-                >
-                  <option value="enabled">Enabled</option>
-                  <option value="disabled">Disabled</option>
-                </select>
+                <div className="action-buttons">
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${config.registrationEnabled ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setConfig({ ...config, registrationEnabled: true })}
+                  >
+                    Enable
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${!config.registrationEnabled ? 'btn-danger' : 'btn-secondary'}`}
+                    onClick={() => setConfig({ ...config, registrationEnabled: false })}
+                  >
+                    Disable
+                  </button>
+                </div>
                 <small>When disabled, server owners cannot submit new registration requests.</small>
               </div>
               <div className="input-group">
@@ -581,37 +697,50 @@ function AdminPanel({ user, onLogout }) {
                 <small>Users with these IDs can access the admin panel.</small>
               </div>
 
-              <div className="input-group">
-                <label>Client Discord IDs (one per line)</label>
-                <textarea
-                  value={config.clientDiscordIds}
-                  onChange={(e) => setConfig({ ...config, clientDiscordIds: e.target.value })}
-                  placeholder="Enter Discord IDs for client access, one per line. Leave empty to deny all users."
-                  rows={5}
-                />
-                <small>Users with these IDs can access the client dashboard.</small>
-              </div>
+              <div className="card-inner" style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Advanced / Legacy</h3>
+                    <div style={{ opacity: 0.8, marginTop: 4 }}>These settings exist for backwards compatibility. Prefer per-server settings in the Server Owner Panel.</div>
+                  </div>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowLegacy(v => !v)}>
+                    {showLegacy ? 'Hide' : 'Show'}
+                  </button>
+                </div>
 
-              <div className="input-group">
-                <label>Minecraft Server Domain/URL</label>
-                <input
-                  type="text"
-                  value={config.minecraftServerDomain}
-                  onChange={(e) => setConfig({ ...config, minecraftServerDomain: e.target.value })}
-                  placeholder="http://localhost:3003 or https://your-minecraft-server.com"
-                />
-                <small>This is where the API will send whitelist add requests</small>
-              </div>
+                {showLegacy && (
+                  <div style={{ marginTop: 14 }}>
+                    <div className="input-group">
+                      <label>Legacy: Global Client Discord IDs (one per line)</label>
+                      <textarea
+                        value={config.clientDiscordIds}
+                        onChange={(e) => setConfig({ ...config, clientDiscordIds: e.target.value })}
+                        placeholder="Leave empty to deny all. Prefer per-server allowlists."
+                        rows={5}
+                      />
+                    </div>
 
-              <div className="input-group">
-                <label>Minecraft Whitelist File Path</label>
-                <input
-                  type="text"
-                  value={config.minecraftWhitelistFile}
-                  onChange={(e) => setConfig({ ...config, minecraftWhitelistFile: e.target.value })}
-                  placeholder="./whitelist.json or /path/to/whitelist.json"
-                />
-                <small>Path to whitelist.json on your Minecraft server (optional - server can use env var)</small>
+                    <div className="input-group">
+                      <label>Legacy: Minecraft Server Domain/URL</label>
+                      <input
+                        type="text"
+                        value={config.minecraftServerDomain}
+                        onChange={(e) => setConfig({ ...config, minecraftServerDomain: e.target.value })}
+                        placeholder="(deprecated)"
+                      />
+                    </div>
+
+                    <div className="input-group">
+                      <label>Legacy: Minecraft Whitelist File Path</label>
+                      <input
+                        type="text"
+                        value={config.minecraftWhitelistFile}
+                        onChange={(e) => setConfig({ ...config, minecraftWhitelistFile: e.target.value })}
+                        placeholder="(deprecated)"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="input-group">
@@ -629,85 +758,6 @@ function AdminPanel({ user, onLogout }) {
                 Save Configuration
               </button>
             </form>
-          </div>
-        )}
-
-        {activeTab === 'clients' && (
-          <div className="card">
-            <h2>Client Discord ID Management</h2>
-            <p>Manage Discord IDs that can access the client dashboard.</p>
-
-            <div className="input-group">
-              <label>Add New Client Discord ID</label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  value={newClientId}
-                  onChange={(e) => setNewClientId(e.target.value)}
-                  placeholder="Enter Discord ID to add"
-                  style={{ flex: 1 }}
-                />
-                <button
-                  type="button"
-                  onClick={handleAddClientId}
-                  className="btn btn-success"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-
-            <div className="input-group">
-              <label>Client Discord IDs (Managed in Dashboard)</label>
-              <textarea
-                value={config.clientDiscordIds}
-                onChange={(e) => setConfig({ ...config, clientDiscordIds: e.target.value })}
-                placeholder="Enter Discord IDs for client access, one per line. Leave empty to deny all users."
-                rows={8}
-              />
-              <small>
-                These IDs are stored in config.json and can be managed here. 
-                Leave empty to deny all client access.
-              </small>
-            </div>
-
-            {config.clientDiscordIds && config.clientDiscordIds.trim().length > 0 && (
-              <div style={{ marginTop: '20px' }}>
-                <h3>Current Client IDs</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
-                  {config.clientDiscordIds.split('\n').filter(id => id.trim().length > 0).map(id => (
-                    <div key={id} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '8px 12px', 
-                      backgroundColor: '#f8f9fa', 
-                      borderRadius: '4px',
-                      border: '1px solid #dee2e6'
-                    }}>
-                      <span>{escapeHtml(id.trim())}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveClientId(id.trim())}
-                        className="btn btn-danger btn-sm"
-                        style={{ padding: '2px 8px', fontSize: '12px' }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginTop: '20px' }}>
-              <button
-                onClick={handleConfigSave}
-                className="btn btn-primary"
-              >
-                Save Client IDs
-              </button>
-            </div>
           </div>
         )}
       </div>

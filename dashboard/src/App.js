@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import axios from 'axios';
 import Landing from './components/Landing';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -9,8 +8,6 @@ import AdminPanel from './components/AdminPanel';
 import RoleSelector from './components/RoleSelector';
 import DiscordCallback from './components/DiscordCallback';
 import './App.css';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -84,6 +81,10 @@ function App() {
     }
   };
 
+  const handleSwitchRole = () => {
+    setShowRoleSelector(true);
+  };
+
   const handleLogout = () => {
     setUser(null);
     setIsAuthenticated(false);
@@ -141,11 +142,7 @@ function App() {
           <Route
             path="/registration"
             element={
-              isAuthenticated && !isDeveloper && (roles.canRegister || !hasServers) ? (
-                <Registration user={user} onLogout={handleLogout} />
-              ) : (
-                <Navigate to={isAuthenticated ? (isDeveloper ? "/admin" : "/dashboard") : "/login"} />
-              )
+              <Registration user={user} onLogout={handleLogout} isAuthenticated={isAuthenticated} />
             }
           />
 

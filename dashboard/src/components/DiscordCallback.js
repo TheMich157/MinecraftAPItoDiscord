@@ -40,7 +40,14 @@ function DiscordCallback({ onLogin }) {
         const hasServers = Array.isArray(roles?.servers) && roles.servers.length > 0;
         onLogin(userData, roles.isAdmin, roles, authToken);
         
-        // If user has both roles, they'll see role selector
+        // Check if user had a specific redirect intent (e.g., from "Register Your Server" button)
+        const redirectIntent = sessionStorage.getItem('oauth_redirect_intent');
+        if (redirectIntent) {
+          sessionStorage.removeItem('oauth_redirect_intent');
+          window.location.href = redirectIntent;
+          return;
+        }
+        
         // Otherwise redirect based on role
         if (roles.isAdmin && hasServers) {
           // Role selector will be shown by App.js
@@ -54,8 +61,10 @@ function DiscordCallback({ onLogin }) {
         }
       }
     } catch (error) {
-      console.error('Discord OAuth error:', error);
-      navigate('/login?error=oauth_failed');
+      const apiMsg = error?.response?.data?.error || error?.response?.data?.message;
+      console.error('Discord OAuth error:', apiMsg || error);
+      const q = apiMsg ? `?error=oauth_failed&msg=${encodeURIComponent(apiMsg)}` : '?error=oauth_failed';
+      navigate(`/login${q}`);
     }
   };
 

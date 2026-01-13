@@ -91,3 +91,103 @@
   align-items: center;
   gap: 6px;
 }
+
+.registration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.registration-item {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.registration-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.registration-title {
+  font-weight: 800;
+  color: #222;
+}
+
+.registration-meta {
+  opacity: 0.8;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.registration-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.registration-hint {
+  margin-top: 10px;
+  opacity: 0.8;
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-item {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.user-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.user-title {
+  font-weight: 800;
+  color: #222;
+  font-family: 'Courier New', monospace;
+}
+
+.user-meta {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.user-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.user-actions label {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-buttons .btn {
+  font-size: 14px;
+  padding: 8px 14px;
+}

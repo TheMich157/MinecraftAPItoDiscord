@@ -1,6 +1,6 @@
 const config = {
   apiUrl: process.env.API_URL || 'http://localhost:3001',
-  botPort: parseInt(process.env.BOT_PORT || '3002', 10),
+  botPort: parseInt(process.env.BOT_PORT || '3012', 10),
   discordClientId: process.env.DISCORD_CLIENT_ID || '',
   nodeEnv: process.env.NODE_ENV || 'development',
   

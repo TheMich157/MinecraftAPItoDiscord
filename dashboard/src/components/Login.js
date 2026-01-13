@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import './Login.css';
 
@@ -7,9 +7,18 @@ const API_URL = process.env.REACT_APP_API_URL || '';
 
 function Login({ onLogin }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState('');
   const [discordOAuthEnabled, setDiscordOAuthEnabled] = useState(false);
-  const [discordClientId, setDiscordClientId] = useState('');
+
+  const loginErrorFromQuery = useMemo(() => {
+    const e = searchParams.get('error');
+    if (!e) return '';
+    const msg = searchParams.get('msg');
+    if (msg) return msg;
+    if (e === 'oauth_failed') return 'Discord OAuth failed. Please try again.';
+    return 'Login failed.';
+  }, [searchParams]);
 
   useEffect(() => {
     // Check if Discord OAuth is configured
@@ -17,7 +26,6 @@ function Login({ onLogin }) {
       .then(response => {
         if (response.data && response.data.oauthEnabled) {
           setDiscordOAuthEnabled(true);
-          setDiscordClientId(response.data.discordClientId || '');
         } else {
           setDiscordOAuthEnabled(false);
         }
@@ -56,6 +64,9 @@ function Login({ onLogin }) {
 
         {discordOAuthEnabled ? (
           <div className="discord-oauth-section">
+            {!!loginErrorFromQuery && (
+              <div className="error-message" style={{ marginBottom: 14 }}>{loginErrorFromQuery}</div>
+            )}
             <button
               type="button"
               onClick={handleDiscordLogin}

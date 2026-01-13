@@ -175,6 +175,34 @@
   opacity: 0.8;
 }
 
+.tab-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tab-tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-input {
+  min-width: 240px;
+  padding: 10px 12px;
+  border: 2px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.95);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(102,126,234,0.55);
+}
+
 .panel-topbar {
   display: flex;
   align-items: flex-end;

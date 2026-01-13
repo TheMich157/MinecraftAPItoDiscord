@@ -9,7 +9,8 @@
     "dashboard"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\" \"npm run dev:bot\"",
+    "dev": "npm run build:dashboard && npm start",
+    "dev:multi": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\"",
     "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:dashboard\" \"npm run dev:bot\"",
     "dev:api": "npm -w api run dev",
     "dev:dashboard": "npm -w dashboard start",
@@ -38,21 +39,21 @@
   "author": "Michael15541",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "axios": "^1.6.2",
-    "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
     "discord.js": "^14.14.1",
-    "ws": "^8.16.0",
-    "lucide-react": "^0.294.0"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.294.0",
+    "ws": "^8.16.0"
   },
   "optionalDependencies": {
-    "mcrcon": "^0.0.2"
+    "mcrcon": "npm:null@^0.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
   }
 }

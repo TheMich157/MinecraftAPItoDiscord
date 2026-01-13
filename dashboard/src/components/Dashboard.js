@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { LogOut, RefreshCw, Download, Users, ListChecks, Activity, Settings, Shield } from 'lucide-react';
 import './Dashboard.css';
@@ -18,21 +18,62 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
   const [serverRoles, setServerRoles] = useState([]);
   const [selectedServerId, setSelectedServerId] = useState('');
   const [activeTab, setActiveTab] = useState('requests');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [serverRequests, setServerRequests] = useState([]);
   const [editingRequestId, setEditingRequestId] = useState(null);
   const [minecraftUsername, setMinecraftUsername] = useState('');
+  const [requestQuery, setRequestQuery] = useState('');
 
   const [serverInfo, setServerInfo] = useState(null);
   const [serverEvents, setServerEvents] = useState([]);
   const [serverState, setServerState] = useState(null);
+  const [eventTypeFilter, setEventTypeFilter] = useState('');
 
   const [members, setMembers] = useState({});
   const [newMemberDiscordId, setNewMemberDiscordId] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('dev');
+  const [memberQuery, setMemberQuery] = useState('');
 
   const [clientDiscordIdsText, setClientDiscordIdsText] = useState('');
   const [whitelistEnabled, setWhitelistEnabled] = useState(true);
+
+  const allowlistCount = useMemo(() => {
+    return (clientDiscordIdsText || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean).length;
+  }, [clientDiscordIdsText]);
+
+  const filteredServerRequests = useMemo(() => {
+    const q = (requestQuery || '').trim().toLowerCase();
+    const base = Array.isArray(serverRequests) ? serverRequests : [];
+    if (!q) return base;
+    return base.filter(r => {
+      const a = (r.discordUsername || '').toLowerCase();
+      const b = (r.discordId || '').toLowerCase();
+      const c = (r.minecraftUsername || '').toLowerCase();
+      return a.includes(q) || b.includes(q) || c.includes(q);
+    });
+  }, [serverRequests, requestQuery]);
+
+  const filteredMembers = useMemo(() => {
+    const q = (memberQuery || '').trim().toLowerCase();
+    const entries = Object.entries(members || {});
+    if (!q) return entries;
+    return entries.filter(([id, info]) => {
+      const a = (id || '').toLowerCase();
+      const b = (info?.role || '').toLowerCase();
+      return a.includes(q) || b.includes(q);
+    });
+  }, [members, memberQuery]);
+
+  const filteredServerEvents = useMemo(() => {
+    const base = Array.isArray(serverEvents) ? serverEvents : [];
+    const f = (eventTypeFilter || '').trim().toLowerCase();
+    if (!f) return base;
+    return base.filter(ev => (ev.type || '').toLowerCase().includes(f));
+  }, [serverEvents, eventTypeFilter]);
 
   const [serverId, setServerId] = useState('');
   const [serverName, setServerName] = useState('');
@@ -57,6 +98,24 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
 
   const isRegistrationMode = mode === 'registration';
 
+  const registrationProgress = useMemo(() => {
+    const regs = Array.isArray(registrations) ? registrations : [];
+    if (regs.length === 0) return 1;
+    if (regs.some(r => r.status === 'approved')) return 2;
+    return 1;
+  }, [registrations]);
+
+  const fetchRegistrations = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/registrations/me`, { headers: authHeaders });
+      setRegistrations(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching registrations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
   useEffect(() => {
     const savedRoles = localStorage.getItem('roles');
     try {
@@ -66,12 +125,14 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
       if (servers.length > 0) {
         setSelectedServerId(servers[0].serverId);
       }
+      setIsAdmin(!!parsed?.isAdmin);
     } catch {
       setServerRoles([]);
+      setIsAdmin(false);
     }
 
     fetchRegistrations();
-  }, []);
+  }, [fetchRegistrations]);
 
   const refreshRoles = async () => {
     try {
@@ -145,17 +206,6 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedServerId]);
-
-  const fetchRegistrations = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/registrations/me`, { headers: authHeaders });
-      setRegistrations(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Error fetching registrations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchServerInfo = async (sid) => {
     try {
@@ -237,6 +287,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
 
   const removeMember = async (sid, discordId) => {
     try {
+      if (!window.confirm(`Remove member ${discordId}?`)) return;
       await axios.delete(`${API_URL}/api/servers/${encodeURIComponent(sid)}/members/${encodeURIComponent(discordId)}`, { headers: authHeaders });
       await fetchMembers(sid);
     } catch (error) {
@@ -392,10 +443,17 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>WhitelistHub</h1>
-          <div className="header-actions">
-            <span className="user-info">Welcome, {user.username}</span>
+        <div className="dashboard-header">
+          <div>
+            <h1>WhitelistHub</h1>
+            <p className="dashboard-subtitle">Server Owner Dashboard</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {isAdmin && (
+              <button onClick={() => { localStorage.setItem('isDeveloper', 'true'); window.location.href = '/'; }} className="btn btn-secondary">
+                <Shield size={18} /> Switch to Admin
+              </button>
+            )}
             <button onClick={onLogout} className="btn btn-secondary">
               <LogOut size={18} /> Logout
             </button>
@@ -418,7 +476,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
               </div>
               <div className="stepper">
                 <div className="step">
-                  <div className="step-dot step-dot-active">1</div>
+                  <div className={`step-dot ${registrationProgress === 1 ? 'step-dot-active' : ''}`}>1</div>
                   <div className="step-body">
                     <div className="step-title">Submit registration</div>
                     <div className="step-sub">Server details + online mode</div>
@@ -426,7 +484,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                 </div>
                 <div className="step-line" />
                 <div className="step">
-                  <div className="step-dot">2</div>
+                  <div className={`step-dot ${registrationProgress === 2 ? 'step-dot-active' : ''}`}>2</div>
                   <div className="step-body">
                     <div className="step-title">Download config</div>
                     <div className="step-sub">After admin approval</div>
@@ -441,6 +499,11 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                   </div>
                 </div>
               </div>
+              {registrationProgress >= 2 && (
+                <div style={{ marginTop: 10, opacity: 0.85 }}>
+                  After downloading config, install the plugin on your Minecraft server, start it, then return here and click <b>Finish setup</b>.
+                </div>
+              )}
             </div>
 
             <div className="grid-2">
@@ -651,10 +714,23 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
               <div className="tab-body">
                 {activeTab === 'requests' && (
                   <div className="fade-in">
-                    <h3>Whitelist Requests</h3>
+                    <div className="tab-head">
+                      <div>
+                        <h3 style={{ marginBottom: 6 }}>Whitelist Requests</h3>
+                        <div style={{ opacity: 0.8 }}>Search by Discord name/ID or Minecraft username.</div>
+                      </div>
+                      <div className="tab-tools">
+                        <input
+                          className="search-input"
+                          placeholder="Search requests..."
+                          value={requestQuery}
+                          onChange={(e) => setRequestQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
                     {loading ? (
                       <div className="loading">Loading...</div>
-                    ) : serverRequests.length === 0 ? (
+                    ) : filteredServerRequests.length === 0 ? (
                       <div className="empty-state">No requests found for this server.</div>
                     ) : (
                       <table className="table">
@@ -668,7 +744,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {serverRequests.map((r) => (
+                          {filteredServerRequests.map((r) => (
                             <tr key={r.id}>
                               <td>{escapeHtml(r.discordUsername)} ({escapeHtml(r.discordId)})</td>
                               <td>
@@ -725,7 +801,20 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
 
                 {activeTab === 'members' && (
                   <div className="fade-in">
-                    <h3>Members & Roles</h3>
+                    <div className="tab-head">
+                      <div>
+                        <h3 style={{ marginBottom: 6 }}>Members & Roles</h3>
+                        <div style={{ opacity: 0.8 }}>Manage who can view / approve / administer this server.</div>
+                      </div>
+                      <div className="tab-tools">
+                        <input
+                          className="search-input"
+                          placeholder="Search members..."
+                          value={memberQuery}
+                          onChange={(e) => setMemberQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
                     <div className="grid-2">
                       <div className="card-inner">
                         <h4>Add member</h4>
@@ -747,7 +836,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
 
                       <div className="card-inner">
                         <h4>Current members</h4>
-                        {Object.keys(members || {}).length === 0 ? (
+                        {filteredMembers.length === 0 ? (
                           <div className="empty-state">No members returned (or you don't have permission).</div>
                         ) : (
                           <table className="table">
@@ -759,7 +848,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                               </tr>
                             </thead>
                             <tbody>
-                              {Object.entries(members).map(([id, info]) => (
+                              {filteredMembers.map(([id, info]) => (
                                 <tr key={id}>
                                   <td>{escapeHtml(id)}</td>
                                   <td>
@@ -785,20 +874,37 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                 {activeTab === 'allowlist' && (
                   <div className="fade-in">
                     <h3>Client Allowlist (Discord IDs)</h3>
+                    <div style={{ marginTop: 6, opacity: 0.8 }}>This is per-server. Only listed Discord IDs can request whitelist access for this server.</div>
                     <div className="card-inner">
                       <div className="input-group">
                         <label>Allowed client Discord IDs (one per line)</label>
                         <textarea rows={8} value={clientDiscordIdsText} onChange={(e) => setClientDiscordIdsText(e.target.value)} />
-                        <small>Only these users can use the bot command to request whitelist for this server.</small>
+                        <small>Currently: {allowlistCount} ID(s).</small>
                       </div>
-                      <button className="btn btn-primary" onClick={() => saveClients(selectedServerId)} disabled={!selectedServerId}>Save allowlist</button>
+                      <div className="action-buttons">
+                        <button className="btn btn-primary" onClick={() => saveClients(selectedServerId)} disabled={!selectedServerId}>Save allowlist</button>
+                        <button className="btn btn-secondary" onClick={() => fetchServerInfo(selectedServerId)} disabled={!selectedServerId}>Reload</button>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'events' && (
                   <div className="fade-in">
-                    <h3>Live Events & State</h3>
+                    <div className="tab-head">
+                      <div>
+                        <h3 style={{ marginBottom: 6 }}>Live Events & State</h3>
+                        <div style={{ opacity: 0.8 }}>Auto-refresh runs only while this tab is open.</div>
+                      </div>
+                      <div className="tab-tools">
+                        <input
+                          className="search-input"
+                          placeholder="Filter by event type..."
+                          value={eventTypeFilter}
+                          onChange={(e) => setEventTypeFilter(e.target.value)}
+                        />
+                      </div>
+                    </div>
                     <div className="grid-2">
                       <div className="card-inner">
                         <h4>Server state</h4>
@@ -810,11 +916,11 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                       </div>
                       <div className="card-inner">
                         <h4>Recent events</h4>
-                        {serverEvents.length === 0 ? (
+                        {filteredServerEvents.length === 0 ? (
                           <div className="empty-state">No events received yet.</div>
                         ) : (
                           <div className="event-feed">
-                            {serverEvents.slice().reverse().map((ev, idx) => (
+                            {filteredServerEvents.slice().reverse().map((ev, idx) => (
                               <div key={`${ev.ts}-${idx}`} className="event-item">
                                 <div className="event-meta">
                                   <span className="event-type">{ev.type}</span>
@@ -835,6 +941,7 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                 {activeTab === 'settings' && (
                   <div className="fade-in">
                     <h3>Server Settings</h3>
+                    <div style={{ marginTop: 6, opacity: 0.8 }}>Settings here apply only to the selected server.</div>
                     <div className="card-inner">
                       <div className="input-group">
                         <label>Whitelist</label>
@@ -844,7 +951,10 @@ function Dashboard({ user, onLogout, mode = 'dashboard' }) {
                         </select>
                         <small>If disabled, requests can still be submitted but approvals will be blocked.</small>
                       </div>
-                      <button className="btn btn-primary" onClick={() => saveSettings(selectedServerId)} disabled={!selectedServerId}>Save settings</button>
+                      <div className="action-buttons">
+                        <button className="btn btn-primary" onClick={() => saveSettings(selectedServerId)} disabled={!selectedServerId}>Save settings</button>
+                        <button className="btn btn-secondary" onClick={() => fetchServerInfo(selectedServerId)} disabled={!selectedServerId}>Reload</button>
+                      </div>
                     </div>
                   </div>
                 )}
